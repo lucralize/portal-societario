@@ -233,7 +233,8 @@ async function graph(method, path, body, extraHeaders){
   const opts = { method, headers, cache: "no-store" };
   if(body !== undefined) opts.body = typeof body === "string" ? body : JSON.stringify(body);
   let url = "https://graph.microsoft.com/v1.0" + path;
-  if(method === "GET") url += (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+  // anti-cache só nos endpoints de drive/workbook; o /me rejeita parâmetros desconhecidos (400)
+  if(method === "GET" && !path.startsWith("/me")) url += (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
   const res = await fetch(url, opts);
   if(!res.ok){ const t = await res.text(); const e = new Error("Graph " + method + " " + path + " -> " + res.status + ": " + t); e.status = res.status; throw e; }
   if(res.status === 204) return null;
