@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Societário — Lucralize</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Poppins:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2/lib/msal-browser.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F7F8; --surface:#FFFFFF; --surface-2:#EDF2F4; --ink:#17202B; --ink-soft:#57626F; --ink-faint:#8B96A2;
+    --primary:#0C7488; --primary-strong:#095668; --primary-soft:#E1F0F2;
+    --chrome:#0E1428; --chrome-strong:#080B15; --brand-cyan:#92DCE5;
+    --success:#2F7D5D; --success-bg:#E4F3EC; --warning:#B4650B; --warning-bg:#FBEEE0;
+    --danger:#F72642; --danger-bg:#FDE9EC; --border:#DEE4E8;
+    --shadow:0 1px 2px rgba(15,25,45,.04), 0 8px 24px -12px rgba(15,25,45,.18);
+    --radius-s:8px; --radius-m:12px; --radius-l:18px;
+    --font-display:'Comfortaa', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body:'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; min-height:100%;}
+  body{font-family:var(--font-body); background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5;}
+  h1,h2,h3{font-family:var(--font-display); margin:0;}
+  .hidden{display:none !important;}
+
+  /* ---------- tela inicial ---------- */
+  .home{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem 1.2rem;
+    background:
+      radial-gradient(1100px 720px at 6% -8%, rgba(12,116,136,.9), transparent 55%),
+      radial-gradient(820px 620px at 70% 105%, rgba(12,116,136,.45), transparent 62%),
+      linear-gradient(155deg, var(--chrome) 0%, var(--chrome-strong) 78%);
+  }
+  .home-inner{width:100%; max-width:460px; display:flex; flex-direction:column; align-items:center; gap:1.6rem; text-align:center; color:#fff;}
+  .home-inner .brand-logo{height:46px; width:auto; display:block;}
+  .home-inner .tag{font-size:.95rem; color:rgba(255,255,255,.8); margin:0;}
+  .choice-list{width:100%; display:flex; flex-direction:column; gap:.9rem;}
+  .choice{
+    display:flex; flex-direction:column; gap:.2rem; text-align:left; cursor:pointer; font-family:inherit; color:#fff;
+    padding:1.15rem 1.3rem; border-radius:var(--radius-m); background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.2);
+    transition:background .15s, border-color .15s, transform .05s;
+  }
+  .choice:hover{background:rgba(255,255,255,.13); border-color:var(--brand-cyan);}
+  .choice:active{transform:scale(.995);}
+  .choice:disabled{opacity:.6; cursor:wait;}
+  .choice strong{font-size:1.05rem; font-weight:600;}
+  .choice span{font-size:.82rem; color:rgba(255,255,255,.75);}
+  .home-msg{width:100%; text-align:left; font-size:.85rem; border-radius:var(--radius-s); padding:.7rem .9rem; background:var(--danger-bg); color:var(--ink); border:1px solid var(--danger); white-space:pre-line;}
+  .home-foot{font-size:.72rem; color:rgba(255,255,255,.5);}
+
+  /* ---------- telas centrais simples (carregando / sem acesso / cliente) ---------- */
+  .center-page{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem 1.2rem; background:var(--bg);}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-l); box-shadow:var(--shadow); padding:1.8rem 1.8rem; width:100%; max-width:480px; display:flex; flex-direction:column; gap:1rem;}
+  .card h2{font-size:1.2rem;}
+  .card p{margin:0; color:var(--ink-soft); font-size:.9rem;}
+  .btn{font-family:inherit; font-size:.9rem; font-weight:600; border-radius:var(--radius-s); padding:.7em 1.1em; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--ink);}
+  .btn:hover{border-color:var(--primary); color:var(--primary);}
+  .btn-primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn-primary:hover{background:var(--primary-strong); border-color:var(--primary-strong); color:#fff;}
+  .spinner{width:28px; height:28px; border:3px solid var(--surface-2); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- app (pós-login) ---------- */
+  .topbar{background:var(--chrome); color:#fff; display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.7rem 1.4rem;}
+  .topbar .brand{display:flex; align-items:center; gap:.8rem;}
+  .topbar .brand img{height:30px; width:auto;}
+  .topbar .brand-caption{font-family:var(--font-display); font-size:.85rem; color:var(--brand-cyan); font-weight:700; letter-spacing:.04em;}
+  .topbar .who{display:flex; align-items:center; gap:.9rem; font-size:.82rem;}
+  .topbar .who .name{font-weight:600;}
+  .badge{display:inline-block; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:.25em .65em; border-radius:999px; background:var(--primary-soft); color:var(--primary-strong);}
+  .topbar .btn{background:transparent; color:#fff; border-color:rgba(255,255,255,.3); padding:.4em .9em; font-size:.8rem;}
+  .topbar .btn:hover{border-color:var(--brand-cyan); color:var(--brand-cyan);}
+  .main{max-width:760px; margin:2rem auto; padding:0 1.2rem; display:flex; flex-direction:column; gap:1.2rem;}
+  .ok-box{background:var(--success-bg); border:1px solid var(--success); border-radius:var(--radius-m); padding:1rem 1.2rem;}
+  .ok-box h2{font-size:1.05rem; color:var(--success);}
+  .ok-box p{margin:.3rem 0 0; font-size:.88rem; color:var(--ink);}
+  .diag{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:1rem 1.2rem; font-size:.85rem;}
+  .diag h3{font-size:.8rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); margin-bottom:.6rem; font-family:var(--font-body); font-weight:700;}
+  .diag table{width:100%; border-collapse:collapse;}
+  .diag td{padding:.35rem 0; border-bottom:1px solid var(--border);}
+  .diag tr:last-child td{border-bottom:none;}
+  .diag td:last-child{text-align:right; font-weight:600;}
+  .diag .err{color:var(--danger); font-weight:600;}
+  .next-note{font-size:.82rem; color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<!-- CARREGANDO -->
+<div id="tela-carregando" class="center-page">
+  <div class="card" style="align-items:center; text-align:center;">
+    <div class="spinner"></div>
+    <p id="carregando-msg">Verificando acesso...</p>
+  </div>
+</div>
+
+<!-- INÍCIO: sou cliente / sou funcionário -->
+<div id="tela-home" class="home hidden">
+  <div class="home-inner">
+    <img class="brand-logo" src="data:image/png;base64,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" alt="Lucralize">
+    <p class="tag">Portal Societário</p>
+    <div class="choice-list">
+      <button class="choice" onclick="irParaCliente()">
+        <strong>Sou cliente</strong>
+        <span>Solicitar um serviço societário</span>
+      </button>
+      <button class="choice" id="btn-funcionario" onclick="entrarFuncionario()">
+        <strong>Sou funcionário Lucralize</strong>
+        <span>Entrar com a conta Microsoft da Lucralize</span>
+      </button>
+    </div>
+    <div id="home-msg" class="home-msg hidden"></div>
+    <div class="home-foot">Grupo Lucralize</div>
+  </div>
+</div>
+
+<!-- CLIENTE (fase 2) -->
+<div id="tela-cliente" class="center-page hidden">
+  <div class="card">
+    <h2>Solicitação de serviço</h2>
+    <p>O formulário para clientes está em construção e será liberado em breve.</p>
+    <button class="btn" onclick="voltarHome()">← Voltar</button>
+  </div>
+</div>
+
+<!-- SEM ACESSO -->
+<div id="tela-semacesso" class="center-page hidden">
+  <div class="card">
+    <h2>Sem acesso ao portal</h2>
+    <p id="semacesso-msg"></p>
+    <button class="btn" onclick="sair()">Sair e voltar ao início</button>
+  </div>
+</div>
+
+<!-- APP (pós-login) -->
+<div id="tela-app" class="hidden">
+  <div class="topbar">
+    <div class="brand"><img src="data:image/png;base64,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" alt="Lucralize"><span class="brand-caption">Societário</span></div>
+    <div class="who">
+      <span class="name" id="app-nome"></span>
+      <span class="badge" id="app-papel"></span>
+      <button class="btn" onclick="sair()">Sair</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="ok-box">
+      <h2>Login validado</h2>
+      <p id="app-ok-msg"></p>
+    </div>
+    <div class="diag">
+      <h3>Diagnóstico da base (PortalSocietario.xlsx)</h3>
+      <table id="diag-tabela"></table>
+    </div>
+    <p class="next-note">Próxima etapa: processos (listagem, detalhe, andamento e anexos).</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ============================================================
+// CONFIG — mesmo padrão do portal-contabil / central-triagem
+// ============================================================
+const SP_CONFIG = {
+  clientId: "COLE-AQUI-O-CLIENT-ID",   // <- Application (client) ID do App Registration "Lucralize - Portal Societário"
+  tenantId: "5173aa83-66e1-49f3-9128-f2251b43294d",
+  driveId:  "b!ekISGx37FUa8VJQoVDwcqosBcJf3ciVJhg2HmW7OU_Skpx_nvEGVTIcQ4XWlDxbZ",
+  workbookPath: "PI - PROCESSOS E INFRA/AUTOMAÇÕES CLAUDE/portal-societario/PortalSocietario.xlsx"
+};
+const GRAPH_SCOPES = ["Sites.ReadWrite.All", "User.Read"];
+const PAPEIS_VALIDOS = ["admin", "colaborador", "freelancer"];
+// Cabeçalhos na mesma ordem das colunas da planilha (nomes de tabela = nomes das abas)
+const TABLE_HEADERS = {
+  Processos: ["Id","OS","ServicoId","Status","EtapaAtual","Divisao","Empresa","ResponsavelEmail","CriadoEm","Protocolo","SolicitanteNome","SolicitanteTelefone","SolicitanteEmail","DadosJson","Excluido","ExcluidoEm","ExcluidoPor","JustificativaExclusao"],
+  Historico: ["Id","ProcessoId","DataHora","Autor","Tipo","Texto"],
+  Equipe:    ["Nome","Email","Papel","Ativo","AdminPrincipal"]
+};
+
+let _msal = null, _token = null, _wbItemId = null;
+let usuarioAtual = null;   // {nome, email, papel, adminPrincipal}
+
+// ------------------------------------------------------------
+// utilidades de tela
+// ------------------------------------------------------------
+const TELAS = ["tela-carregando","tela-home","tela-cliente","tela-semacesso","tela-app"];
+function mostrar(id){ TELAS.forEach(t => document.getElementById(t).classList.toggle("hidden", t !== id)); }
+function msgHome(texto){
+  const el = document.getElementById("home-msg");
+  if(!texto){ el.classList.add("hidden"); el.textContent = ""; return; }
+  el.textContent = texto; el.classList.remove("hidden");
+}
+function encPath(p){ return p.split("/").map(encodeURIComponent).join("/"); }
+function norm(s){ return String(s == null ? "" : s).trim().toLowerCase(); }
+
+// ------------------------------------------------------------
+// MSAL
+// ------------------------------------------------------------
+function redirectUri(){ return window.location.origin + window.location.pathname.replace(/index\.html$/, ""); }
+
+async function ensureMsal(){
+  if(_msal) return _msal;
+  if(!SP_CONFIG.clientId || SP_CONFIG.clientId.indexOf("COLE-AQUI") === 0){
+    throw new Error("CONFIG: o Client ID do App Registration ainda não foi preenchido em SP_CONFIG.clientId.");
+  }
+  _msal = new msal.PublicClientApplication({
+    auth: { clientId: SP_CONFIG.clientId, authority: "https://login.microsoftonline.com/" + SP_CONFIG.tenantId, redirectUri: redirectUri() },
+    cache: { cacheLocation: "localStorage" }
+  });
+  await _msal.initialize();
+  return _msal;
+}
+async function loginInterativo(){
+  await ensureMsal();
+  const r = await _msal.loginPopup({ scopes: GRAPH_SCOPES });
+  _token = r.accessToken;
+  return r;
+}
+async function loginSilencioso(){
+  await ensureMsal();
+  const contas = _msal.getAllAccounts();
+  if(!contas.length) throw new Error("sem-conta");
+  const r = await _msal.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: contas[0] });
+  _token = r.accessToken;
+  return r;
+}
+
+// ------------------------------------------------------------
+// Graph / Excel
+// ------------------------------------------------------------
+async function graph(method, path, body, extraHeaders){
+  const headers = Object.assign({ "Authorization": "Bearer " + _token, "Content-Type": "application/json" }, extraHeaders || {});
+  const opts = { method, headers, cache: "no-store" };
+  if(body !== undefined) opts.body = typeof body === "string" ? body : JSON.stringify(body);
+  let url = "https://graph.microsoft.com/v1.0" + path;
+  if(method === "GET") url += (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+  const res = await fetch(url, opts);
+  if(!res.ok){ const t = await res.text(); const e = new Error("Graph " + method + " " + path + " -> " + res.status + ": " + t); e.status = res.status; throw e; }
+  if(res.status === 204) return null;
+  return res.json();
+}
+
+async function resolveWorkbook(){
+  if(_wbItemId) return;
+  const item = await graph("GET", "/drives/" + SP_CONFIG.driveId + "/root:/" + encPath(SP_CONFIG.workbookPath));
+  _wbItemId = item.id;
+}
+
+// Lê todas as linhas de uma tabela; ignora linhas totalmente vazias mas preserva _rowIndex (índice real na tabela)
+async function xlGetRows(table){
+  await resolveWorkbook();
+  const headers = TABLE_HEADERS[table];
+  let rows = [], url = "/drives/" + SP_CONFIG.driveId + "/items/" + _wbItemId + "/workbook/tables/" + table + "/rows?$top=4999", guard = 0;
+  while(url && guard < 500){
+    guard++;
+    const resp = await graph("GET", url);
+    rows = rows.concat(resp.value || []);
+    url = resp["@odata.nextLink"] ? resp["@odata.nextLink"].replace("https://graph.microsoft.com/v1.0", "") : null;
+  }
+  const out = [];
+  rows.forEach((r, i) => {
+    const vals = r.values[0];
+    if(vals.every(v => v === "" || v === null)) return;
+    const o = { _rowIndex: i };
+    headers.forEach((h, ci) => o[h] = vals[ci]);
+    out.push(o);
+  });
+  return out;
+}
+
+// ------------------------------------------------------------
+// Fluxo de acesso
+// ------------------------------------------------------------
+async function obterPerfilMicrosoft(){
+  const me = await graph("GET", "/me?$select=displayName,mail,userPrincipalName");
+  return { nome: me.displayName || "", emails: [me.mail, me.userPrincipalName].filter(Boolean).map(norm) };
+}
+
+// Devolve {ok:true, usuario} ou {ok:false, motivo}
+async function validarAcesso(){
+  const perfil = await obterPerfilMicrosoft();
+  let equipe;
+  try{
+    equipe = await xlGetRows("Equipe");
+  }catch(err){
+    if(err.status === 404) throw new Error("Não encontrei a planilha ou a tabela 'Equipe'. Confira se o arquivo está em:\n" + SP_CONFIG.workbookPath + "\ne se as tabelas Processos, Historico e Equipe existem.");
+    if(err.status === 403) throw new Error("Sua conta não tem permissão para abrir a planilha do portal.");
+    throw err;
+  }
+  const linha = equipe.find(r => perfil.emails.includes(norm(r.Email)));
+  if(!linha) return { ok:false, motivo:"Sua conta Microsoft (" + (perfil.emails[0] || "?") + ") não está cadastrada na equipe do Portal Societário. Peça a um administrador para incluir seu e-mail." };
+  if(norm(linha.Ativo) !== "sim") return { ok:false, motivo:"Seu acesso ao Portal Societário está inativo. Fale com um administrador." };
+  const papel = norm(linha.Papel);
+  if(!PAPEIS_VALIDOS.includes(papel)) return { ok:false, motivo:"Seu cadastro na equipe está sem um papel válido (admin, colaborador ou freelancer). Fale com um administrador." };
+  return { ok:true, usuario:{ nome: linha.Nome || perfil.nome, email: perfil.emails[0], papel, adminPrincipal: norm(linha.AdminPrincipal) === "sim" } };
+}
+
+async function aposLogin(){
+  mostrar("tela-carregando");
+  document.getElementById("carregando-msg").textContent = "Validando seu acesso...";
+  const r = await validarAcesso();
+  if(!r.ok){
+    document.getElementById("semacesso-msg").textContent = r.motivo;
+    mostrar("tela-semacesso");
+    return;
+  }
+  usuarioAtual = r.usuario;
+  await abrirApp();
+}
+
+async function abrirApp(){
+  document.getElementById("app-nome").textContent = usuarioAtual.nome;
+  document.getElementById("app-papel").textContent = usuarioAtual.papel;
+  document.getElementById("app-ok-msg").textContent = "Você entrou como " + usuarioAtual.nome + " (" + usuarioAtual.papel + ").";
+  mostrar("tela-app");
+  await rodarDiagnostico();
+}
+
+async function rodarDiagnostico(){
+  const tb = document.getElementById("diag-tabela");
+  tb.innerHTML = "";
+  for(const t of Object.keys(TABLE_HEADERS)){
+    const tr = document.createElement("tr");
+    const a = document.createElement("td"); a.textContent = "Tabela " + t;
+    const b = document.createElement("td");
+    try{
+      const rows = await xlGetRows(t);
+      b.textContent = rows.length + (rows.length === 1 ? " linha" : " linhas");
+    }catch(err){
+      b.textContent = "erro: " + (err.status || "") ; b.className = "err";
+      console.error(err);
+    }
+    tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+  }
+}
+
+// ------------------------------------------------------------
+// Ações da interface
+// ------------------------------------------------------------
+async function entrarFuncionario(){
+  const btn = document.getElementById("btn-funcionario");
+  msgHome("");
+  btn.disabled = true;
+  try{
+    await loginInterativo();
+    await aposLogin();
+  }catch(err){
+    console.error(err);
+    const cod = err && (err.errorCode || err.name) || "";
+    if(cod === "user_cancelled" || cod === "popup_window_error" && /cancel/i.test(err.message||"")){
+      msgHome("Login cancelado.");
+    }else if(cod === "popup_window_error" || cod === "empty_window_error"){
+      msgHome("O navegador bloqueou a janela de login. Libere pop-ups para este site e tente de novo.");
+    }else{
+      msgHome(err.message || "Não foi possível entrar. Tente novamente.");
+    }
+    mostrar("tela-home");
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function irParaCliente(){ msgHome(""); mostrar("tela-cliente"); }
+function voltarHome(){ mostrar("tela-home"); }
+
+async function sair(){
+  usuarioAtual = null; _token = null; _wbItemId = null;
+  try{
+    if(_msal){
+      const conta = _msal.getAllAccounts()[0];
+      if(conta) await _msal.logoutPopup({ account: conta, mainWindowRedirectUri: redirectUri() });
+    }
+  }catch(err){
+    console.warn("logout:", err);
+    try{ if(_msal && _msal.clearCache) await _msal.clearCache(); }catch(e){}
+  }
+  msgHome("");
+  mostrar("tela-home");
+}
+
+// ------------------------------------------------------------
+// Início: tenta sessão existente (silencioso); senão mostra a tela inicial
+// ------------------------------------------------------------
+(async function iniciar(){
+  try{
+    await loginSilencioso();
+    await aposLogin();
+  }catch(err){
+    if(err && err.message && err.message.indexOf("CONFIG:") === 0){ mostrar("tela-home"); msgHome(err.message); return; }
+    mostrar("tela-home");   // sem sessão ou sessão expirada: usuário clica no botão
+  }
+})();
+</script>
+</body>
+</html>
