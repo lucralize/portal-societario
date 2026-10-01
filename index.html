@@ -84,6 +84,72 @@
   .diag td:last-child{text-align:right; font-weight:600;}
   .diag .err{color:var(--danger); font-weight:600;}
   .next-note{font-size:.82rem; color:var(--ink-soft);}
+
+  /* ---------- lista / detalhe / modal ---------- */
+  .topbar .nav{display:flex; gap:.3rem; margin-left:1rem;}
+  .topbar .navtab{background:transparent; border:none; color:rgba(255,255,255,.75); font-family:inherit; font-size:.85rem; font-weight:600; padding:.45em .9em; border-radius:var(--radius-s); cursor:pointer;}
+  .topbar .navtab.active{background:rgba(255,255,255,.12); color:#fff;}
+  .main.wide{max-width:1120px;}
+  .section-title{display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+  .section-title h3{font-size:1.15rem;}
+  .toolbar{display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;}
+  .btn-sm{padding:.45em .85em; font-size:.8rem;}
+  .btn-accent{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn-accent:hover{background:var(--primary-strong); border-color:var(--primary-strong); color:#fff;}
+  .btn-ghost{background:transparent;}
+  .btn:disabled{opacity:.6; cursor:wait;}
+  .filters{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.7rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:.9rem 1rem;}
+  .filters label{display:block; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:.25rem;}
+  input[type=text],input[type=date],select,textarea{width:100%; padding:.55em .7em; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.88rem; font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--primary-soft); border-color:var(--primary);}
+  .table-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); box-shadow:var(--shadow); overflow-x:auto;}
+  table.t{width:100%; border-collapse:collapse; font-size:.86rem;}
+  table.t th{text-align:left; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); padding:.75rem 1rem; border-bottom:1px solid var(--border); background:var(--surface-2);}
+  table.t td{padding:.8rem 1rem; border-bottom:1px solid var(--border); vertical-align:top;}
+  table.t tr:last-child td{border-bottom:none;}
+  table.t tr.clickable{cursor:pointer;}
+  table.t tr.clickable:hover{background:var(--surface-2);}
+  .mono{font-variant-numeric:tabular-nums; letter-spacing:.01em;}
+  .sub{font-size:.72rem; color:var(--ink-faint);}
+  .empty{text-align:center; color:var(--ink-faint); padding:1.8rem 0;}
+  .pill{display:inline-flex; align-items:center; gap:.4em; font-size:.72rem; font-weight:700; padding:.3em .65em; border-radius:999px; white-space:nowrap;}
+  .pill-dot{width:6px; height:6px; border-radius:50%; background:currentColor;}
+  .pill.status-aguardando_pagamento{background:var(--warning-bg); color:var(--warning);}
+  .pill.status-em_andamento{background:var(--primary-soft); color:var(--primary);}
+  .pill.status-concluido{background:var(--success-bg); color:var(--success);}
+  .pill.status-cancelado{background:var(--danger-bg); color:var(--danger);}
+  .overlay{position:fixed; inset:0; background:rgba(8,11,21,.55); display:flex; align-items:center; justify-content:center; padding:1rem; z-index:50;}
+  .modal-box{background:var(--surface); border-radius:var(--radius-l); width:100%; max-width:560px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 20px 60px -20px rgba(0,0,0,.5);}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.4rem; border-bottom:1px solid var(--border);}
+  .panel-head h3{font-size:1.05rem;}
+  .close-x{background:none; border:none; font-size:1.1rem; color:var(--ink-soft); cursor:pointer;}
+  .panel-body{padding:1.2rem 1.4rem; overflow-y:auto; display:flex; flex-direction:column; gap:.9rem;}
+  .panel-foot{display:flex; justify-content:flex-end; gap:.6rem; padding:1rem 1.4rem; border-top:1px solid var(--border);}
+  .field{display:flex; flex-direction:column; gap:.3rem;}
+  .field label{font-size:.74rem; font-weight:600; color:var(--ink-soft);}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:.8rem;}
+  .form-grid .full{grid-column:1 / -1;}
+  .req{color:var(--danger); margin-left:.2em;}
+  .note{font-size:.82rem; color:var(--ink-soft); line-height:1.5;}
+  .errbox{font-size:.8rem; background:var(--danger-bg); border:1px solid var(--danger); border-radius:var(--radius-s); padding:.6rem .8rem; white-space:pre-line;}
+  .detail-head{display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+  .detail-head h2{font-size:1.3rem;}
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-m); padding:1.1rem 1.3rem;}
+  .panel h4{margin:0 0 .8rem; font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--font-body);}
+  .kv{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.9rem 1.4rem;}
+  .kv .k{font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint);}
+  .kv .v{font-size:.9rem; margin-top:.15rem; word-break:break-word;}
+  .steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.45rem;}
+  .steps li{display:flex; align-items:center; gap:.65rem; font-size:.88rem; color:var(--ink-soft);}
+  .steps .dot{width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex:none; display:flex; align-items:center; justify-content:center; font-size:.65rem; color:#fff;}
+  .steps li.done{color:var(--ink);} .steps li.done .dot{background:var(--success); border-color:var(--success);}
+  .steps li.current{color:var(--ink); font-weight:600;} .steps li.current .dot{border-color:var(--primary); background:var(--primary-soft);}
+  .tl{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.8rem;}
+  .tl li{border-left:2px solid var(--border); padding-left:.9rem;}
+  .tl .when{font-size:.72rem; color:var(--ink-faint);}
+  .tl .txt{font-size:.88rem; margin-top:.1rem;}
+  .toast{position:fixed; bottom:1.2rem; left:50%; transform:translateX(-50%); background:var(--chrome); color:#fff; padding:.7rem 1.1rem; border-radius:var(--radius-s); font-size:.85rem; z-index:80; max-width:90vw; box-shadow:var(--shadow);}
+  .toast.err{background:var(--danger);}
 </style>
 </head>
 <body>
@@ -137,25 +203,18 @@
 <!-- APP (pós-login) -->
 <div id="tela-app" class="hidden">
   <div class="topbar">
-    <div class="brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABMcAAAHICAMAAAB9I30XAAAACVBMVEX////3JkKS3OUKIDqUAAAAAXRSTlMAQObYZgAAGi1JREFUeNrtndtiXKkOBd39/x99ztzixO7NRpcFi3bVa0ASQtS0PY7z8fEePD7ZXQoAQJjHd3aXBAAQ4HHB7roAAOZ4DNhdGwDAPY8xu8sDALjjccvuCgEARtxbDJEBgDVTGkNkAODLpMYQGQC4Mq0xRAYAngQ0hsgAwJKQxxAZAPgR0xgeAwA7ghpDZABgx1BViAwA/LnzFB4DAHfuLYXIAMCaGUfhMQBwZk5RiAwAbJkUFB4DAFtm/YTHAMCVaT8hMgAwZdpOeAwAPAnYCY8BgCUBOeExALAEjwHA6eAxADidiJwQGQA4gscA4HTwGACcDh4DgNPBYwBwOngMAE4HjwHA6eAxADgdPAYAp4PHAOB08BgAnA4eA4DTwWMAcDp4DABOB48BwOngMQA4HTwGAKeDxwDgdPAYAJwOHgOA08FjAHA6eAwATgePAcDp4DEAOB08BgCng8cA4HTwGACcDh4DgNPBYwBwOngMAE4HjwHA6eAxADgdPAYAp4PHAOB08BgAnA4eA4DTwWMAcDp4DABOB48BwOngMQA4HTwGAKeDxwDgdPAYAJwOHgOA08FjAHA6eAwATgePAcDp4DEAOB08BgCng8cA4HTwGACcDh4DgNPBYwBwOngMAE4HjwHAXupmwWMAsJHHC4pB+tYCANzyuKAUpm8tAMANjwGFQH1rAQCGPG5Ih+pbCwAw4k5jEcfgMQBYz73FIpbBYwCwnDmNTWsGjwHAamY1NusZPAYAi5nX2KRo8BgALAaPAcDhRDQ2Zxo8BgBLiWlsSjV4DABWEtXYjGvwGACsZGwqPAYA9tx6KiMyPAYAC5mQFB4DAGemHBUWGR4DgHXMGQqPAYAvk4LCYwDgyrSfYiLDYwCwDDwGAKczLxE8BgCe4DEAOJzAV4uhLyzxGACswsFNeAwAKji4CY8BQAUHN+ExAKjg4CY8BgAVHNyExwCggoOb8BgAVHBwEx4DgAoObsJjAFDBwU14DAAqOLgJjwFABQc34TEAqODgJjwGABUc3ITHAKCCg5vwGABUcHATHgOACg5uwmMAUMHBTXgMACo4uAmPAUAFBzfhMQCo4OAmG489/8/G9GAPA2KKg5s8PPb8ZFcJ4AwDYoyDmxw89vyDPTWAMwyIMw5uMvDY84nIYMCzYUIYLR0ObtrvsWfHmMIbUx4QhkuKg5scPcaswW9UB4TpEuPgpu0eez4RGQyoDgjTpcbBTXgMvCkOCOMlx8FNuz32xGMwpDYgzJceBzfhMbDmWZqQZ207zODgJk+PMWfwL6UBeV6y+1jvhIOb8BhYg8fscXATHgNrKgPyHLD7XG+Eg5vwGFiDx+xxcBMeA2sKAzLSGBPWh4Ob8BhYo/IYI9aGg5vwGFiDx+xxcBMeA2vwmD0ObsJjYA0es8fBTXgMrMFj9ji4CY+BNXjMHgc34TGwRuWx3ed6IxzchMfAmsqA4LElOLgJj4E1eMweBzfhMbBG5LHdx3onHNyEx8Ca0oDgsRU4uAmPgTW1AUFjC3BwEx4DayQe232o98LBTXgMrCkOCNOlx8FNeAysqQ4IwyXHwU14DKypDwizJcbBTXgMrGkYECZLi4Ob8BhY0zMgzJUQBzfhMbCGAbHHwU14DKxhQBZQe/0ObsJjYA0DouXxKCvAwU14DKxhQIQ8XlKL4r9WAWMKQxgQGY9LKnH81ypgTGEIAyLiMSQfyX+tAsYUhjAgGh53ZEP5r1XAmMIQBkTBrcUiMnBwEx4DaxgQATMam7eBg5vwGFjDgPQzp7FpHTi4CY+BNQxIO7Mam/WBg5vwGFjDgHQzr7FJITi4CY+BNQxIMxGNzRnBwU14DKxhQJqJeWxGCQ5uwmNgDQPSS1BjeGwOxhSGMCCtDGyVFpmDm/AYWMOAtHIjqpTIHNyEx8AaBqSTe03hsRQ/eUw3nlTV7v7b+8kDct2P7O4JSeGxDPUxFc615s3IXuZcmOezvwBByO5uhTY9m3Fpw5yjoiJzcNPhHlP+J1oQWjfvk1EEBYjfcEvUyL4Ob7X2oTHynKHwWJza1bS+mGFhuqO2JJoK0p9f/ob7/923u52zR4rTefxk7ElBBUXm4KajPdb4XG7r0pyzaeBnQrSnX/CKP/q+8TC5NXYocQu6o0/rCY9FqVx532OZKav/kG0jfx+gP/mCZzzKUwnQeipZBwTh8ZiMwo33vRVtaPnM329vzy0/010mzVXmjrXqTssJ5h87HgtSuPGulzJbVesBO6f+bnd76gVnustV2i84WO/xRRmyHjvATed6rOuhTMduPF7r1N9sbk9dOlO4i8Uwsd21o3UdXpYj8NgdfIPHthU1Fad57sdbuxOXz1T/3l8kSGx3/XANR5clcXCIw1oF+QvveCTtRc2E6R784c7uxA1navl2d2278HDVkwvTODjEYa2C9gvfW9R9kP7RH+zrTtt0poZveEt2dx2vcG5lHgeHOKxV0H7hW4uaqK9/9q+3dWdtO1PpxyYiAWK7+86XrFqbyMEhDmsVpMe0/kIERd2Xt2z4izVoj1T/q46S3a0nTFQtTuXgEIe1CtJjWn4giqJuq1s3/e3/r7T1SPPdXLq7+4yxqtW5HBzisFZBekyLz0NT1F1xC8ffXWPFH0LQ3GT/IQNVy5M5OMRhrYL0mKZGRV3UuLRD5v9lwiVJ+u8iuFtxytmq9dkcHOKwVkF6TDOjIi9qWNk5D+B7PkWOyk+VnOmxzbfo4BCHtQrSY5qZFXlRo8JkT2BBNs2ZFvx4TXS36qC3Ra/I5+AQh7UK0mOamBV9UaPCZG9An0t0pKmWpjfmduuOuuP3bPyZxMEhDmsVdM/3do+tfwXFYPeZZEea6Wl2X3b3lqNmAsS3ODjEYa2C9JimH4ayqOzv7yy9g6bHdLkiF7peUPkucrtD7extfXxvaKODQxzWKkiPafZdSIuaeQT5rfmcld5UAjfUVDtKb9IS+WyVWn9f6eAQh7UK0mOafRdbipqMkdtbfkfKM5Xrqp1GOCTB86ZbVLyh39Y5OMRhrYL2y7Msqn0kA0mLbakHrkWonUc4JLGzZvtTv6TPVQ4OcViroP117Cyq/OQ/ZkcykLXWlJbAlSC1EwmHJHbQXHM6rulzkYNDHNYqSF9g/5MtF9Xx5D/ij+F5S3snooELUWqZhUMSOmaqNU0X9WuNg0Mc1ipIX2H/my0X1fHiE0d73iDoROs7S32DTXuT3d1KNaY9uYNDHNYqSN+h4tXWiupzSSzIc4ygEY1nyr5zSSeLNB4vU+NtJAeHOKxVkL5ExbMtFdXqkkiUoSFcNPaR/Qqqll04JIHzZTY1FvDfnzs4xGGtgvQtKt5tqahelwTCPJ+9qVVHyoWr5RcOyfzpMptaS/j3jx0c4rBWQfoaJQ+3UFS3S+bDPLtTq46UClgrQDgk04dr3pM/roNDHNYqSN+j5OUWimp3SfWl15vRHzcRsVaBcEhmj5bZ1F3EP3/q4BCHtQrSF6l5uumiBC6ZDSNILYsbj1krQTgkDc1a1t9//tDBIQ5rFaRvUvN200UpXFJ8DTKPLQ1aq0E4JA13sK6/f/+Zg0Mc1ipIX6Xm7WaLEqsk1QnDj2OJqLUahEPScAeC4kZlODjEYa2C9KBpHm+2KJFLKtVafhyLh60VsehWcr1a2N+//8jBIQ5rFaTvUimOeGhlNXs6kXua/eXWqlhzLZe9Wv5xbBjVwSEOaxWkB01pjnBoZTGbOpF7mv311qpYci+XrdqhMTyGx9JFKYvRtXBTf2ORa2UsuZecxlQeu/67IA4OcVir4K09Zt5Cs/Y+I4t39mbyOKm/jyur58PDIQ5rFbyFx5S1CFto1t5DPXapsU0fx/AYHksWtVVjSz22vmJ3j2U1pvPY5Qc9B4c4rFWAx/a1cFN3Y9HNPZbWmOzLSjyGx3JF7dXYSo9tKPlUj+V2CovycIjDWgV4TFTt0g4Iw3t77FJjGz+O4TE8lirq/TwmP9GbeCyvMTyGx0YbfTy2uYUrG6BM4OyxgsbwGB4bbdzgMfmjT1W7sAHSBEd6LLlX2l4PhzisVYDHRNW6hcz2zNhjlxrb/HEMj7U1stRxPNZQrVvIbAZfj1U0hsfw2HCjjcd2t3Dd+bUpbD1W0tgGjz0tHOKwVgEeE1W77vzaFOd5rLZbh4VDHNYqSM9CaYpai9LVUal23fm1KWq16E4y8EVtuwwLhzisVZCehdIUtRalq6NSrVfEfI7aNcuGZKCL4n4ZFg5xWKsgPQy1MWosSlhHpVqviPkctfaqLmdgi2oAGRYOcVirID0NxTnqK0pYR6Var4j5HLX2qi7nWhbVADosHOKwVkF6HKqD1FaUsI5KtV4R8zlq7RVdzkAW1QA6LBzisFZBehyKg9RXlK6MUrVeEfM5atesGZKBK8oRdFg4xGGtgvQ8VCeprShdGaVqvSLmc9SuWTIkA1XUQ+iwcIjDWgXpgSiPUldRujJK1XpFzOeoXbNkSK5NUQ8hxMIhDmsVpCeiPktNRenKKFXrFTGfo3bNiiEZmKIhhg4LhzisVZCeiPosNRWlK6NU7arjq6uuFSM4ykAUHUF0WDjEYa2C9Eg0DFNPUboyStV6RcznqF1z/5AMPNESRYeFQxzWKkjPRMc0tRSlK6NUrVfEfI7aNfcPybUmWqLo8HCIw1oF6aFoGaeOonRllKr1ipjPUbvm9iEZaKIljA4PhzisVZCeip55aihKWEelWq+I+Ry19nZfzkgTPXFUfHg4xGGtgvRU9MxTQ1HCOirVekXM56i1t/lyhproCSTir6QODnFYqyA9Fk0DVS9KWEelWq+I+Ry19jZfzlATPZE0/J3TwSEOaxXk56J5RNOhhXVUqvWKmM9Ra2/v5Yw10RNKwb85HRzisFZBfjB6R7QQWldHpVqviPkctWtuHZJbUVRj9Xb4Gw4OcVirAI+Jql13fm0KH491agyP4bHyzubQeEyZ4gCPtQXrbPALHBzisFYBHhNVu+782hQ2HmvVGB7DY+WdzaEXvPpEtW4hs01z8dilxvDYaWsV4DFRtQsb0JfA12PNGtsiMgeHOKxV8AYe2/2FJR5bcJBujeExPFbd2R1a/uoz1a5sQFsCW4+1awyP4bHhzo5ZwGPiIwW0YOGxy3rx2IFrFeAxUbVLO9AU3tVjAo3t+GaEg0Mc1ioozIfsrYWHdq/I8Jj4HAqN7fhA5uAQh7UK8Jio3MUtaIl+mscETehp8GscHOKwVkG/x+qj0OWxRSLDY+FMsmrLYXsa/BoHhzisVYDHROWu7kFDbE+PiTS2QWQODnFYq0DgMdUTfsa3bGyhqAm6gk09JtMYHsNjw714bE8TyqHP8piqD/UGX+HgEIe1Cvw8Fnlk4lIqBWuiKgNbeiw1DauKC+LgEIe1ChQe0/wMaMpjK0SGx8LJGoqttqGhuCgODnFYq0DiscoohB7Z/a5tLdRErUceaszNY1KNLReZg0Mc1iooXaWPx3aKTJRX84bHGnvO7yilK1db7u4wfE/0bzg4xGGthMpVCp5a8JEpS6mVLApbjH2jMTOPqS918cw4OMRhrYTKTfY/tegjm9m5p4OquLXgzxvmt5TyVYutN3ecoSv+nzg4xGGtBKtJCz+yqa1bOqiKW4r+vGN+Tylhsdh6b+9StGX4HQeHOKyVULrJ5pcWf2S6Wn4Lmaq6diu37WgPeBlWMSC1ahtauzLHLxwc4rBWQu0iW19a4pFN7q42JpFYeDWi9l5FrRRQ2Nt7myuzXEVwcIjDWg2le+x8aalHJqrla7R4XuXVaNp7FbRSQH5r513mutIQ8c8/cXCIw1oNtWvse2q5RzYbodqUcFrl1WQy3Lf3KmalgPTOtpss9KUh3B9/5uAQh7UaatfY9tSSj0xSy0dou/C5FRsS6u5lxEr69M6Wayx3ph7t9z90cIjDWg3FW+x5aulHFohSa0k0q/pyQkmm2nsZsJC+/yZ7+jrbm3qo3/7YwSEOa0XUbjH1MoIxqs8mNpXRzcr31tCTgMWiHkt/RM5X3NPWQHvKcT4XODhEtNZAY9X/IJWfWu2R9daS+fAhfXD1rky39zJYIX2u5sr99fe4GORziYFvfqzH7u+zsDWSfW6gilFS+7Qvbl17ryPlN+dusjIBihaXQnwuMvDNO3us+oGofcorUyw8Ryzl4ssp3WvTDb/YnrrJRN3po80mLNT7a52Bb0RrH5GwMpaN+X8x+iexdpha+kKxvQcKn2i66vT+zE1ma88erjQAkW37ffPeHquKTDZ403O4oppgwh23IztkOkC0l+LjtiSNbvmVZL9vRGtNNKb8H1pLpnBJMcGEe65n+jCxQ6bbFO2leph2ZP2VY7tvRGu/aGyfxxZ/Zdk+hEuKCebbcz3TZwkeMtumaC/Vo7Qh72eK3b5RrT3RYztFJjhNR/JasTtO9BEXTLJRTc1sPfrizJ8ZdvtGs/arxTZqrP6BbInIFMdpyF0tdvmBBgG7ByTczfaLm78WecJz3BRY+01jWz1W/2FU9QA+Q2pYmbpc7OIDjeJ1D4guTeXwC3P/Hv8YN82v/W6xvRpr+KH6xrtPzKCumtvM9WKXHmgYrqGAmU2r7i14L+Jsh7gpsPaFxjZ7rPpT/YEI9xkSIyir5j5xQ7ELDzSO1j0g4TSd15a4F2myM9w0v/aVxXZrrOMva7fdfWoENdVM5O0odtmBboJ1D0g4Td+tJU7Ynf9L7BPcNL/28ZqP7dTnoOvucyMoKWcibU+xaw50F6p7QMJpmu5ssjxpAd9C+7spsNZWYy2/BKzn7pMj2F7NXNKmYhccqFp1omHRNB1XJrnPhkT2bppfe2ExC42Vf7fCbIjb4NkJ7C5nLmlfteLz1KuOdyyapnxh9ftsKeJVWHM3za+9spiJxjp+21VlBm6CqI6kmfp9VzR3llzV8jSl6+q60aYvK75i7ab5tZcWs9FYz+8fbbj8wgi2lVP7+wM772iuHtHtFtPkb0t/p9Ucxm4KrD1BYx89v+W3fvmFCWyqR/br/OV3NFlNtupgpmia1F0JLjVbySCgr5vm115bzEtjHz3/Elb59ksTWK+n+rNqG+9ouph01bFUwTThm9Jda6KWYThXN82vHVjMTmPX19cTZTJuKXetnvpPeEiuJXkcRdWVm1z6E1zle+mM7umm+bVnWexvWoagdvnFAUwX1PD/RXuq7TiOrOpIsmCWiDpiyNo8F3uNb/p+ceuXtQdq7C96nmbLM5OdqmnS/wzcWG3pPPKqE1dZPtRyi81UNBlE5bH0L6AOhT3TYp30j5Wiot1daj1NbPvuAxxCdWre1GOr2g8ABizy2Pxvbo2FxWIA8JYe291TAFiLzGOzfgo6CIsBwFeWeexRWXW9HosBwDqPzf3y1nBULAbw49F5bMZRcRGhMQD4ykqPTfz61nhMLAbw4xF67O4fLoqrCIsBwAsWe+y/fSkZoTEAeIXSY/N/iWgmJBYDgNc4eSwbancPAWAvUo8FRZaLs7uDALAbrcdCIstF2d1AANiO2GMBkaVC7G4fABig9ti0yFL7d3cPAByQe2xSZLnNu7sHAA7oPVb5VTvZD3EA8JNY4LG0jtL6A4AfxRKPpX5LReFjHAD8KNZ4LPEvfs9oDI8BwMc6jw3/tuXsYjwGAC/IeywhkVkNTVoMjwHAX4S80CKR281DceExAPhKwWMii4w/f+ExAPhKSE0LPHb3VSQeA4BvWH0gu/9eGB4DgG9UPNbskXuL4TEAeEHJY60imdEYHgOA78TEoBPZlMXwGAC8IOaloWP6qrjOgMcA4DvFD2QdMpm2GB4DgFdUP5DVjRLQGB4DgBcEhRRwTir/TUQ8BgAv2CqymMXwGAC8pM9jca+EY+ExAHhBVEZ9IktEwmMA8IpGkVXSTsXBYwDwirCMOjyW/FSHxwDgJX0iS6ecDYLHAOAlcR0VPZa1GB4DgCsSPip4LG8xPAYAV2SElPVYxWJ4DAAuaRJZKlNh++62AYARCas0fJwqf026u20A4ERULCkTlS2GxwBgQEwu3RpLlrm7aQDgxbxhci5q+DD2gccAYMicZZIu6rEYHgOAIY8a2dCVIne3DADc2KGxWo27OwYAdmg01vdh7AOPAcAd7hbDYwBwT7PGmi2GxwBgAjQGAMfTp7F2i+ExAJjE1mLRfxIFAH4uphbDYwAQ4AiN4TEAGOJnMTQGAGFyElNZDI8BQIqEjlZZDI0BwDQhfSz7MIbHAEDCQouhMQAQILNY5p8PAACIs/LDGBoDgH7WWgyPAUA3qy2GxgCgl7XfGENjANDO8g9jaAwAWllvMTQGAJ1ssBgaA4BG1n9jDI0BQCs7PoyhMQDoA4sBwNnwJSUAHM4Oi6ExAOiDLykB4GywGACcDd8YA4DD4cMYAJwNFgOAs8FiAHA2W74xhsYAoA8+jAHA2WAxADgbLAYAh8M3xgDgbPgwBgBng8UA4Gx0ssFiALAEvjEGAGfDl5QAcDZYDADOZss3xtAYAPTBhzEAOBssBgBng8UA4Gz4xhgAHA4fxgDgbLAYABwOFgOAs+EbYwBwOHwYA4DDwWIAcDjrv6TcfWIAeDP4xhgAHA5fUgLA6WAxADgcvqQEgMPhwxgAnA4WA4DDwWIAcDpoDAAOp9U2WAwANtCoGywGAFtYorHdhwSAd6ZNOHwYA4BNNBkHiwHANlqUg8UAYCMd0sFiALCRBu3wYQwAtlLWDhYDgM0UxYPFAGA7NfWgMQDYT8U9WAwAHMjbB4sBgAdZ/2AxAHAhaSA0BgA2pByExQDAibiFsBgAeBH2EBYDADOCKuLDGADYEXIRFgMAR+Z1hMUAwJNpI2ExADBlUkp8GAMAX2a0hMUAwJl7NWExADDnzk5oDADcGSnq8cBiAHAAjxy7ywYA+ASLAcDpoDEAOB4sBgDHg8UA4HiwGAAcDxoDgPPBYgBwPFgMAI4HjQHA+WAxADgfLAYAbwASA4C3AIUBwBH8D/km6lacA7hjAAAAAElFTkSuQmCC" alt="Lucralize"><span class="brand-caption">Societário</span></div>
+    <div class="brand"><img src="data:image/png;base64,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" alt="Lucralize"><span class="brand-caption">Societário</span>
+      <div class="nav"><button class="navtab active">Processos</button></div>
+    </div>
     <div class="who">
       <span class="name" id="app-nome"></span>
       <span class="badge" id="app-papel"></span>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </div>
-  <div class="main">
-    <div class="ok-box">
-      <h2>Login validado</h2>
-      <p id="app-ok-msg"></p>
-    </div>
-    <div class="diag">
-      <h3>Diagnóstico da base (PortalSocietario.xlsx)</h3>
-      <table id="diag-tabela"></table>
-    </div>
-    <p class="next-note">Próxima etapa: processos (listagem, detalhe, andamento e anexos).</p>
-  </div>
+  <div class="main wide" id="view"></div>
 </div>
+<div id="modal-root"></div>
 
 <script>
 "use strict";
@@ -177,7 +236,9 @@ const TABLE_HEADERS = {
   Equipe:    ["Nome","Email","Papel","Ativo","AdminPrincipal"]
 };
 
-let _msal = null, _token = null, _wbItemId = null;
+const CATALOGO = [{"id": "abertura-cnpj", "categoria": "Abertura e Transformação de CNPJ", "nome": "Abertura de CNPJ ou Filial", "etapas": ["Aguardando complemento das informações", "Viabilidade do nome e do endereço", "Documento Básico de Entrada (DBE)", "Módulo Integrador", "Registro Digital na Junta Comercial", "Em análise pela Junta Comercial", "Inscrição do CNPJ e Regime Tributário"]}, {"id": "transformacao-mei-me", "categoria": "Abertura e Transformação de CNPJ", "nome": "Transformação de MEI para ME", "etapas": ["Aguardando complemento das informações", "Viabilidade do nome e do endereço", "Documento Básico de Entrada (DBE)", "Módulo Integrador", "Registro Digital na Junta Comercial", "Em análise pela Junta Comercial"]}, {"id": "alteracao-simples", "categoria": "Alterações e Baixa da Empresa", "nome": "Alteração Contratual — Simples", "etapas": ["Viabilidade do nome e do endereço", "Documento Básico de Entrada (DBE)", "Módulo Integrador", "Registro Digital na Junta Comercial", "Em análise pela Junta Comercial"]}, {"id": "alteracao-complexa", "categoria": "Alterações e Baixa da Empresa", "nome": "Alteração Contratual — Complexa", "etapas": ["Viabilidade do nome e do endereço", "Documento Básico de Entrada (DBE)", "Módulo Integrador", "Registro Digital na Junta Comercial", "Em análise pela Junta Comercial"]}, {"id": "baixa-cnpj", "categoria": "Alterações e Baixa da Empresa", "nome": "Baixa de CNPJ", "etapas": ["Pagamento confirmado e dados recebidos", "Levantamento de certidões e pendências", "Baixa protocolada na Junta Comercial", "Baixa nas esferas Estadual e Municipal", "Concluído — CNPJ baixado"]}, {"id": "ativacao-ie", "categoria": "Inscrições e credenciamentos", "nome": "Ativação de Inscrição Estadual", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Solicitação enviada à Receita Estadual", "Concluído — inscrição ativa"]}, {"id": "ativacao-im", "categoria": "Inscrições e credenciamentos", "nome": "Ativação de Inscrição Municipal", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Solicitação enviada à Prefeitura Municipal", "Concluído — inscrição ativa"]}, {"id": "baixa-ie", "categoria": "Inscrições e credenciamentos", "nome": "Baixa de Inscrição Estadual", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Solicitação enviada à Receita Estadual", "Concluído — inscrição baixada"]}, {"id": "baixa-im", "categoria": "Inscrições e credenciamentos", "nome": "Baixa de Inscrição Municipal", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Solicitação enviada à Prefeitura Municipal", "Concluído — inscrição baixada"]}, {"id": "credenciamento-nf", "categoria": "Inscrições e credenciamentos", "nome": "Credenciamento para Emissão de NF", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Credenciamento solicitado à Prefeitura", "Concluído — emissão liberada"]}, {"id": "alvara-funcionamento", "categoria": "Licenças e representação", "nome": "Alvará de Funcionamento", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "Protocolado na Prefeitura", "Vistoria/análise do órgão (quando aplicável)", "Concluído — alvará emitido"]}, {"id": "alteracao-dbe", "categoria": "Licenças e representação", "nome": "Alteração de Representante ou Contato do CNPJ", "etapas": ["Pagamento confirmado e dados recebidos", "Documentação em análise", "DBE/cadastro atualizado", "Concluído"]}, {"id": "alteracao-contador-rfb", "categoria": "Licenças e representação", "nome": "Alteração de Contador RFB", "etapas": ["Pagamento confirmado e dados recebidos", "Termo de transferência processado", "Concluído"]}, {"id": "regularizacao-parcelamento", "categoria": "Regularização e comércio exterior", "nome": "Regularização de CNPJ e Parcelamento", "etapas": ["Pagamento confirmado e dados recebidos", "Levantamento de pendências", "Parcelamento/regularização protocolado", "Concluído — situação regularizada"]}, {"id": "registro-importador", "categoria": "Regularização e comércio exterior", "nome": "Registro de Importador (RADAR)", "etapas": ["1ª parcela confirmada e dados recebidos", "Documentação em análise", "Solicitação protocolada na Receita Federal", "Concluído — habilitação RADAR ativa"]}];
+const CAT_MAP = {}; CATALOGO.forEach(s => CAT_MAP[s.id] = s);
+let _msal = null, _token = null, _wbItemId = null, _wbSessionId = null;
 let usuarioAtual = null;   // {nome, email, papel, adminPrincipal}
 
 // ------------------------------------------------------------
@@ -228,15 +289,20 @@ async function loginSilencioso(){
 // ------------------------------------------------------------
 // Graph / Excel
 // ------------------------------------------------------------
-async function graph(method, path, body, extraHeaders){
+async function graph(method, path, body, extraHeaders, _retry){
   const headers = Object.assign({ "Authorization": "Bearer " + _token, "Content-Type": "application/json" }, extraHeaders || {});
+  if(_wbSessionId && path.includes("/workbook/")) headers["workbook-session-id"] = _wbSessionId;
   const opts = { method, headers, cache: "no-store" };
   if(body !== undefined) opts.body = typeof body === "string" ? body : JSON.stringify(body);
   let url = "https://graph.microsoft.com/v1.0" + path;
   // anti-cache só nos endpoints de drive/workbook; o /me rejeita parâmetros desconhecidos (400)
   if(method === "GET" && !path.startsWith("/me")) url += (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
   const res = await fetch(url, opts);
-  if(!res.ok){ const t = await res.text(); const e = new Error("Graph " + method + " " + path + " -> " + res.status + ": " + t); e.status = res.status; throw e; }
+  if(res.status === 401 && !_retry){            // token expirou (dura ~1h): renova em silêncio e repete
+    await loginSilencioso();
+    return graph(method, path, body, extraHeaders, true);
+  }
+  if(!res.ok){ const tx = await res.text(); const e = new Error("Graph " + method + " " + path + " -> " + res.status + ": " + tx); e.status = res.status; throw e; }
   if(res.status === 204) return null;
   return res.json();
 }
@@ -247,10 +313,10 @@ async function resolveWorkbook(){
   _wbItemId = item.id;
 }
 
-// Lê todas as linhas de uma tabela; ignora linhas totalmente vazias mas preserva _rowIndex (índice real na tabela)
-async function xlGetRows(table){
+const linhaVazia = vals => vals.every(v => v === "" || v === null);
+
+async function xlGetRaw(table){
   await resolveWorkbook();
-  const headers = TABLE_HEADERS[table];
   let rows = [], url = "/drives/" + SP_CONFIG.driveId + "/items/" + _wbItemId + "/workbook/tables/" + table + "/rows?$top=4999", guard = 0;
   while(url && guard < 500){
     guard++;
@@ -258,15 +324,46 @@ async function xlGetRows(table){
     rows = rows.concat(resp.value || []);
     url = resp["@odata.nextLink"] ? resp["@odata.nextLink"].replace("https://graph.microsoft.com/v1.0", "") : null;
   }
-  const out = [];
-  rows.forEach((r, i) => {
+  return rows;
+}
+// Lê as linhas de uma tabela; ignora linhas vazias mas preserva _rowIndex (índice real na tabela)
+async function xlGetRows(table){
+  const headers = TABLE_HEADERS[table], out = [];
+  (await xlGetRaw(table)).forEach((r, i) => {
     const vals = r.values[0];
-    if(vals.every(v => v === "" || v === null)) return;
+    if(linhaVazia(vals)) return;
     const o = { _rowIndex: i };
     headers.forEach((h, ci) => o[h] = vals[ci]);
     out.push(o);
   });
   return out;
+}
+// Grava uma linha: ocupa a primeira linha vazia da tabela (a que o Excel exige) ou acrescenta no fim
+async function xlAddRow(table, obj){
+  const headers = TABLE_HEADERS[table];
+  const values = headers.map(h => obj[h] === undefined || obj[h] === null ? "" : obj[h]);
+  const base = "/drives/" + SP_CONFIG.driveId + "/items/" + _wbItemId + "/workbook/tables/" + table + "/rows";
+  const raw = await xlGetRaw(table);
+  const vazia = raw.findIndex(r => linhaVazia(r.values[0]));
+  if(vazia >= 0) await graph("PATCH", base + "/itemAt(index=" + vazia + ")", { values: [values] });
+  else await graph("POST", base + "/add", { values: [values] });
+}
+// Sessão persistente do Excel durante gravações (mesmo padrão do portal-contabil)
+async function comSessaoDeEscrita(fn){
+  await resolveWorkbook();
+  try{
+    const s = await graph("POST", "/drives/" + SP_CONFIG.driveId + "/items/" + _wbItemId + "/workbook/createSession", { persistChanges: true });
+    _wbSessionId = s.id;
+  }catch(err){ console.error("Sem sessão persistente do Excel; seguindo sem ela:", err); _wbSessionId = null; }
+  try{
+    return await fn();
+  }finally{
+    const sid = _wbSessionId; _wbSessionId = null;
+    if(sid){
+      try{ await graph("POST", "/drives/" + SP_CONFIG.driveId + "/items/" + _wbItemId + "/workbook/closeSession", undefined, { "workbook-session-id": sid }); }
+      catch(err){ console.error("Erro ao fechar sessão do Excel:", err); }
+    }
+  }
 }
 
 // ------------------------------------------------------------
@@ -293,7 +390,7 @@ async function validarAcesso(){
   if(norm(linha.Ativo) !== "sim") return { ok:false, motivo:"Seu acesso ao Portal Societário está inativo. Fale com um administrador." };
   const papel = norm(linha.Papel);
   if(!PAPEIS_VALIDOS.includes(papel)) return { ok:false, motivo:"Seu cadastro na equipe está sem um papel válido (admin, colaborador ou freelancer). Fale com um administrador." };
-  return { ok:true, usuario:{ nome: linha.Nome || perfil.nome, email: perfil.emails[0], papel, adminPrincipal: norm(linha.AdminPrincipal) === "sim" } };
+  return { ok:true, usuario:{ nome: linha.Nome || perfil.nome, email: perfil.emails[0], emailCadastro: norm(linha.Email), papel, adminPrincipal: norm(linha.AdminPrincipal) === "sim" } };
 }
 
 async function aposLogin(){
@@ -312,26 +409,271 @@ async function aposLogin(){
 async function abrirApp(){
   document.getElementById("app-nome").textContent = usuarioAtual.nome;
   document.getElementById("app-papel").textContent = usuarioAtual.papel;
-  document.getElementById("app-ok-msg").textContent = "Você entrou como " + usuarioAtual.nome + " (" + usuarioAtual.papel + ").";
   mostrar("tela-app");
-  await rodarDiagnostico();
+  tela = { nome: "lista" };
+  document.getElementById("view").innerHTML = '<div class="empty">Carregando processos...</div>';
+  try{
+    await carregarDados();
+    renderApp();
+  }catch(err){
+    console.error(err);
+    document.getElementById("view").innerHTML = '<div class="errbox">Não foi possível carregar os dados da planilha.\n' + esc(err.message) + '</div>';
+  }
 }
 
-async function rodarDiagnostico(){
-  const tb = document.getElementById("diag-tabela");
-  tb.innerHTML = "";
-  for(const t of Object.keys(TABLE_HEADERS)){
-    const tr = document.createElement("tr");
-    const a = document.createElement("td"); a.textContent = "Tabela " + t;
-    const b = document.createElement("td");
-    try{
-      const rows = await xlGetRows(t);
-      b.textContent = rows.length + (rows.length === 1 ? " linha" : " linhas");
-    }catch(err){
-      b.textContent = "erro: " + (err.status || "") ; b.className = "err";
-      console.error(err);
-    }
-    tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+// ============================================================
+// DADOS
+// ============================================================
+const STATUS_LABEL = { aguardando_pagamento:"Aguardando pagamento", em_andamento:"Em andamento", concluido:"Concluído", cancelado:"Cancelado pelo cliente" };
+const DIVISAO_LABEL = { tech:"Lucralize Tech", contabilidade:"Lucralize Contabilidade" };
+let dados = { processos: [], historico: [], equipe: [] };
+let tela = { nome: "lista" };
+let filtro = { empresa:"", servico:"", status:"", divisao:"" };
+let _ultimaCarga = 0;
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const hojeISO = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); };
+const agoraISO = () => { const d = new Date(); return hojeISO() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+function novoId(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("id-" + Date.now() + "-" + Math.random().toString(16).slice(2)); }
+function fmtData(iso){ if(!iso) return "—"; const p = String(iso).slice(0,10).split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+function fmtDataHora(s){ if(!s) return "—"; const [d, h] = String(s).split(" "); return fmtData(d) + (h ? " " + h : ""); }
+// O Excel pode devolver datas como número serial (dias desde 1899-12-30); aceita os dois formatos
+function serialParaDate(v){ return new Date(Math.round((v - 25569) * 86400) * 1000); }
+function normData(v){
+  if(v === "" || v == null) return "";
+  if(typeof v === "number") return serialParaDate(v).toISOString().slice(0,10);
+  return String(v).slice(0,10);
+}
+function normDataHora(v){
+  if(v === "" || v == null) return "";
+  if(typeof v === "number"){ const d = serialParaDate(v); return d.toISOString().slice(0,10) + " " + d.toISOString().slice(11,16); }
+  return String(v).replace("T", " ").slice(0,16);
+}
+function parseJson(s){ try{ return s ? JSON.parse(s) : {}; }catch(e){ return {}; } }
+
+function mapProcesso(r){
+  const d = parseJson(r.DadosJson);
+  return {
+    id: String(r.Id), os: String(r.OS || ""), servicoId: String(r.ServicoId || ""), status: String(r.Status || ""),
+    etapa: String(r.EtapaAtual || ""), divisao: String(r.Divisao || ""), empresa: String(r.Empresa || ""),
+    responsavel: norm(r.ResponsavelEmail), criadoEm: normData(r.CriadoEm), protocolo: String(r.Protocolo || ""),
+    solicitante: { nome: String(r.SolicitanteNome || ""), telefone: String(r.SolicitanteTelefone || ""), email: String(r.SolicitanteEmail || "") },
+    dados: d, excluido: norm(r.Excluido) === "sim"
+  };
+}
+function mapHistorico(r){
+  return { id: String(r.Id), processoId: String(r.ProcessoId), dataHora: normDataHora(r.DataHora), autor: String(r.Autor || ""), tipo: String(r.Tipo || ""), texto: String(r.Texto || "") };
+}
+async function carregarDados(){
+  const [p, h, e] = await Promise.all([xlGetRows("Processos"), xlGetRows("Historico"), xlGetRows("Equipe")]);
+  dados.processos = p.map(mapProcesso);
+  dados.historico = h.map(mapHistorico);
+  dados.equipe = e.map(r => ({ nome: String(r.Nome || ""), email: norm(r.Email), papel: norm(r.Papel), ativo: norm(r.Ativo) === "sim" }));
+  _ultimaCarga = Date.now();
+}
+function ehFreelancer(){ return usuarioAtual && usuarioAtual.papel === "freelancer"; }
+// Atenção: restringir o freelancer aqui é só de tela; o isolamento real depende da permissão do arquivo no SharePoint.
+function processosVisiveis(){
+  return dados.processos.filter(p => !p.excluido && (!ehFreelancer() || p.responsavel === usuarioAtual.emailCadastro));
+}
+function numOS(os){ const m = String(os).match(/^OS-(\d+)\/(\d{4})$/); return m ? (+m[2]) * 100000 + (+m[1]) : 0; }
+function nomeServico(id){ return CAT_MAP[id] ? CAT_MAP[id].nome : "Serviço não identificado"; }
+function etapasDo(p){ return (p.dados && Array.isArray(p.dados.etapas) && p.dados.etapas.length) ? p.dados.etapas : (CAT_MAP[p.servicoId] ? CAT_MAP[p.servicoId].etapas : []); }
+function pill(status){ return '<span class="pill status-' + esc(status) + '"><span class="pill-dot"></span>' + esc(STATUS_LABEL[status] || status || "Status desconhecido") + '</span>'; }
+
+// ============================================================
+// TELAS
+// ============================================================
+function renderApp(){
+  if(tela.nome === "detalhe") return renderDetalhe(tela.id);
+  renderLista();
+}
+function renderLista(){
+  const podeIncluir = !ehFreelancer();
+  const servOpts = CATALOGO.map(s => '<option value="' + s.id + '"' + (filtro.servico === s.id ? " selected" : "") + '>' + esc(s.nome) + '</option>').join("");
+  const statOpts = ["aguardando_pagamento","em_andamento","concluido"].map(s => '<option value="' + s + '"' + (filtro.status === s ? " selected" : "") + '>' + STATUS_LABEL[s] + '</option>').join("");
+  const divOpts = ["tech","contabilidade"].map(d => '<option value="' + d + '"' + (filtro.divisao === d ? " selected" : "") + '>' + DIVISAO_LABEL[d] + '</option>').join("");
+  document.getElementById("view").innerHTML =
+    '<div class="section-title"><h3>Processos</h3><div class="toolbar">' +
+      '<button class="btn btn-sm" id="btn-atualizar" onclick="atualizar()">↻ Atualizar</button>' +
+      (podeIncluir ? '<button class="btn btn-accent btn-sm" onclick="abrirModalIncluir()">+ Incluir processo manualmente</button>' : '') +
+    '</div></div>' +
+    '<div class="filters">' +
+      '<div><label>Empresa</label><input type="text" id="flt-empresa" placeholder="Buscar..." value="' + esc(filtro.empresa) + '" oninput="filtrarLive()"></div>' +
+      '<div><label>Serviço</label><select id="flt-servico" onchange="filtrarLive()"><option value="">Todos</option>' + servOpts + '</select></div>' +
+      '<div><label>Lucralize</label><select id="flt-divisao" onchange="filtrarLive()"><option value="">Todas</option>' + divOpts + '</select></div>' +
+      '<div><label>Status</label><select id="flt-status" onchange="filtrarLive()"><option value="">Todos</option>' + statOpts + '</select></div>' +
+    '</div>' +
+    '<div class="table-card"><table class="t"><thead><tr><th>Empresa</th><th>Serviço</th><th>Lucralize</th><th>Status</th><th>Aberto em</th><th></th></tr></thead>' +
+    '<tbody id="tbody-processos">' + linhasProcessos() + '</tbody></table></div>';
+}
+function linhasProcessos(){
+  const f = filtro;
+  const lista = processosVisiveis().filter(p => {
+    if(f.empresa && p.empresa.toLowerCase().indexOf(f.empresa.toLowerCase()) === -1) return false;
+    if(f.servico && p.servicoId !== f.servico) return false;
+    if(f.status && p.status !== f.status) return false;
+    if(f.divisao && p.divisao !== f.divisao) return false;
+    return true;
+  }).sort((a, b) => (b.criadoEm || "").localeCompare(a.criadoEm || "") || numOS(b.os) - numOS(a.os));
+  if(!lista.length) return '<tr><td colspan="6" class="empty">' + (processosVisiveis().length ? "Nenhum processo encontrado para os filtros selecionados." : "Nenhum processo cadastrado ainda.") + '</td></tr>';
+  return lista.map(p =>
+    '<tr class="clickable" onclick="abrirDetalhe(\'' + esc(p.id) + '\')">' +
+      '<td><strong>' + esc(p.empresa || "—") + '</strong><div class="sub mono">' + esc((p.dados.empresa && p.dados.empresa.cnpj) || "") + '</div></td>' +
+      '<td>' + esc(nomeServico(p.servicoId)) + (p.etapa ? '<div class="sub">' + esc(p.etapa) + '</div>' : '') + '</td>' +
+      '<td>' + esc((DIVISAO_LABEL[p.divisao] || "—").replace("Lucralize ", "").toUpperCase()) + '</td>' +
+      '<td>' + pill(p.status) + '<div class="sub mono" style="margin-top:.25rem;">' + esc(p.os || "—") + '</div></td>' +
+      '<td class="mono">' + fmtData(p.criadoEm) + '</td>' +
+      '<td style="text-align:right;"><span class="btn btn-ghost btn-sm">Abrir →</span></td>' +
+    '</tr>').join("");
+}
+function filtrarLive(){
+  filtro.empresa = (document.getElementById("flt-empresa") || {}).value || "";
+  filtro.servico = (document.getElementById("flt-servico") || {}).value || "";
+  filtro.divisao = (document.getElementById("flt-divisao") || {}).value || "";
+  filtro.status  = (document.getElementById("flt-status")  || {}).value || "";
+  const tb = document.getElementById("tbody-processos"); if(tb) tb.innerHTML = linhasProcessos();
+}
+function abrirDetalhe(id){ tela = { nome: "detalhe", id }; renderApp(); window.scrollTo(0, 0); }
+function voltarLista(){ tela = { nome: "lista" }; renderApp(); }
+
+function renderDetalhe(id){
+  const p = processosVisiveis().find(x => x.id === id);
+  if(!p){ voltarLista(); return; }
+  const etapas = etapasDo(p);
+  const idxAtual = etapas.indexOf(p.etapa);
+  const passos = etapas.map((e, i) => {
+    const cls = p.status === "concluido" ? "done" : (idxAtual >= 0 && i < idxAtual ? "done" : (i === idxAtual ? "current" : ""));
+    return '<li class="' + cls + '"><span class="dot">' + (cls === "done" ? "✓" : "") + '</span>' + esc(e) + '</li>';
+  }).join("");
+  const hist = dados.historico.filter(h => h.processoId === p.id).sort((a, b) => b.dataHora.localeCompare(a.dataHora));
+  const histHtml = hist.length ? hist.map(h => '<li><div class="when">' + fmtDataHora(h.dataHora) + (h.autor ? ' · ' + esc(h.autor) : '') + '</div><div class="txt">' + esc(h.texto) + '</div></li>').join("") : '<li><div class="txt" style="color:var(--ink-faint);">Sem registros.</div></li>';
+  const resp = dados.equipe.find(e => e.email === p.responsavel);
+  const emp = p.dados.empresa || {};
+  const kv = (k, v) => '<div><div class="k">' + k + '</div><div class="v">' + (v || "—") + '</div></div>';
+  document.getElementById("view").innerHTML =
+    '<div><button class="btn btn-sm" onclick="voltarLista()">← Voltar</button></div>' +
+    '<div class="detail-head"><div><h2>' + esc(nomeServico(p.servicoId)) + '</h2><div class="sub mono" style="margin-top:.2rem;">' + esc(p.os || "—") + '</div></div><div>' + pill(p.status) + '</div></div>' +
+    '<div class="panel"><h4>Dados</h4><div class="kv">' +
+      kv("Empresa", esc(p.empresa)) + kv("CNPJ", esc(emp.cnpj)) + kv("Tipo societário", esc(emp.tipo)) +
+      kv("Lucralize", esc(DIVISAO_LABEL[p.divisao])) + kv("Aberto em", fmtData(p.criadoEm)) + kv("Etapa atual", esc(p.etapa)) +
+      kv("Responsável", esc(resp ? resp.nome : p.responsavel)) + kv("Protocolo", esc(p.protocolo)) +
+      (p.solicitante.nome || p.solicitante.email || p.solicitante.telefone ? kv("Solicitante", esc([p.solicitante.nome, p.solicitante.telefone, p.solicitante.email].filter(Boolean).join(" · "))) : "") +
+    '</div></div>' +
+    '<div class="panel"><h4>Etapas</h4><ul class="steps">' + (passos || '<li>Sem etapas definidas para este serviço.</li>') + '</ul></div>' +
+    '<div class="panel"><h4>Histórico</h4><ul class="tl">' + histHtml + '</ul></div>';
+}
+
+async function atualizar(){
+  const b = document.getElementById("btn-atualizar"); if(b){ b.disabled = true; b.textContent = "Atualizando..."; }
+  try{ await carregarDados(); renderApp(); toast("Dados atualizados."); }
+  catch(err){ console.error(err); toast("Não foi possível atualizar: " + err.message, true); renderApp(); }
+}
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible" && usuarioAtual && Date.now() - _ultimaCarga > 60000 && !document.getElementById("modal-root").innerHTML){
+    carregarDados().then(renderApp).catch(err => console.error(err));
+  }
+});
+
+function toast(msg, erro){
+  const el = document.createElement("div"); el.className = "toast" + (erro ? " err" : ""); el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), erro ? 6000 : 3200);
+}
+
+// ============================================================
+// INCLUSÃO MANUAL DE PROCESSO
+// ============================================================
+function opcoesEtapas(servicoId){
+  const s = CAT_MAP[servicoId]; if(!s) return "";
+  return '<option value="aguardando_pagamento">Aguardando pagamento</option>' +
+    s.etapas.map((e, i) => '<option value="' + i + '">' + esc(e) + '</option>').join("") +
+    '<option value="concluido">Concluído</option>';
+}
+function modalAtualizarEtapas(){
+  const sel = document.getElementById("m-etapa"); if(sel) sel.innerHTML = opcoesEtapas(document.getElementById("m-servico").value);
+}
+function abrirModalIncluir(){
+  if(ehFreelancer()) return;
+  let grupos = "", cat = null;
+  CATALOGO.forEach(s => {
+    if(s.categoria !== cat){ if(cat !== null) grupos += "</optgroup>"; grupos += '<optgroup label="' + esc(s.categoria) + '">'; cat = s.categoria; }
+    grupos += '<option value="' + s.id + '">' + esc(s.nome) + '</option>';
+  });
+  grupos += "</optgroup>";
+  const respOpts = '<option value="">Sem responsável</option>' + dados.equipe.filter(e => e.ativo).map(e => '<option value="' + esc(e.email) + '">' + esc(e.nome || e.email) + ' (' + esc(e.papel) + ')</option>').join("");
+  document.getElementById("modal-root").innerHTML =
+    '<div class="overlay" onclick="if(event.target===this) fecharModal()"><div class="modal-box">' +
+      '<div class="panel-head"><h3>Incluir processo manualmente</h3><button class="close-x" onclick="fecharModal()">✕</button></div>' +
+      '<div class="panel-body">' +
+        '<p class="note">Registra um processo que já estava em andamento antes deste portal. O número da OS é gerado automaticamente.</p>' +
+        '<div id="m-erro" class="errbox hidden"></div>' +
+        '<div class="form-grid">' +
+          '<div class="field full"><label>Razão social <span class="req">*</span></label><input type="text" id="m-empresa" placeholder="Ex: João Pereira Comércio LTDA"></div>' +
+          '<div class="field"><label>CNPJ</label><input type="text" id="m-cnpj" placeholder="00.000.000/0001-00"></div>' +
+          '<div class="field"><label>Tipo societário</label><input type="text" id="m-tipo" value="LTDA"></div>' +
+          '<div class="field"><label>Lucralize</label><select id="m-divisao"><option value="tech">Tech</option><option value="contabilidade">Contabilidade</option></select></div>' +
+          '<div class="field"><label>Data de abertura</label><input type="date" id="m-data" value="' + hojeISO() + '"></div>' +
+          '<div class="field full"><label>Serviço <span class="req">*</span></label><select id="m-servico" onchange="modalAtualizarEtapas()">' + grupos + '</select></div>' +
+          '<div class="field full"><label>Etapa/status atual <span class="req">*</span></label><select id="m-etapa">' + opcoesEtapas(CATALOGO[0].id) + '</select></div>' +
+          '<div class="field full"><label>Responsável (opcional)</label><select id="m-resp">' + respOpts + '</select></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button><button class="btn btn-primary" id="m-salvar" onclick="confirmarInclusao()">Incluir processo</button></div>' +
+    '</div></div>';
+}
+function fecharModal(){ document.getElementById("modal-root").innerHTML = ""; }
+function modalErro(msg){ const el = document.getElementById("m-erro"); if(!el) return; el.textContent = msg; el.classList.remove("hidden"); }
+
+function proximaOS(linhasProcessos){
+  const ano = new Date().getFullYear(); let max = 0;
+  linhasProcessos.forEach(r => { const m = String(r.OS || "").match(/^OS-(\d+)\/(\d{4})$/); if(m && +m[2] === ano) max = Math.max(max, +m[1]); });
+  return "OS-" + String(max + 1).padStart(3, "0") + "/" + ano;
+}
+
+async function confirmarInclusao(){
+  const empresa = document.getElementById("m-empresa").value.trim();
+  const cnpj = document.getElementById("m-cnpj").value.trim();
+  const tipo = document.getElementById("m-tipo").value.trim() || "LTDA";
+  const divisao = document.getElementById("m-divisao").value;
+  const dataAb = document.getElementById("m-data").value || hojeISO();
+  const servicoId = document.getElementById("m-servico").value;
+  const etapaVal = document.getElementById("m-etapa").value;
+  const resp = document.getElementById("m-resp").value;
+  if(!empresa){ modalErro("Informe a razão social da empresa."); return; }
+  const etapas = CAT_MAP[servicoId].etapas;
+  let status, etapa;
+  if(etapaVal === "aguardando_pagamento"){ status = "aguardando_pagamento"; etapa = ""; }
+  else if(etapaVal === "concluido"){ status = "concluido"; etapa = etapas[etapas.length - 1]; }
+  else { status = "em_andamento"; etapa = etapas[parseInt(etapaVal, 10)]; }
+
+  const btn = document.getElementById("m-salvar"); btn.disabled = true; btn.textContent = "Salvando...";
+  try{
+    const os = await comSessaoDeEscrita(async () => {
+      const existentes = await xlGetRows("Processos");        // leitura nova, dentro da gravação, para calcular a OS
+      const os = proximaOS(existentes);
+      const id = novoId();
+      await xlAddRow("Processos", {
+        Id: id, OS: os, ServicoId: servicoId, Status: status, EtapaAtual: etapa, Divisao: divisao, Empresa: empresa,
+        ResponsavelEmail: resp, CriadoEm: dataAb, Protocolo: "",
+        DadosJson: JSON.stringify({ origem: "manual", empresa: { nome: empresa, cnpj: cnpj, tipo: tipo }, etapas: etapas })
+      });
+      try{
+        await xlAddRow("Historico", {
+          Id: novoId(), ProcessoId: id, DataHora: agoraISO(), Autor: usuarioAtual.nome, Tipo: "inclusao_manual",
+          Texto: "Processo incluído manualmente pela equipe Lucralize a partir de um registro anterior a este portal."
+        });
+      }catch(errH){ console.error(errH); toast("Processo criado, mas o histórico inicial não foi gravado.", true); }
+      return os;
+    });
+    fecharModal();
+    await carregarDados();
+    renderApp();
+    toast("Processo incluído — " + os + ".");
+  }catch(err){
+    console.error(err);
+    btn.disabled = false; btn.textContent = "Incluir processo";
+    modalErro("Não foi possível gravar na planilha.\n" + err.message);
   }
 }
 
@@ -365,7 +707,7 @@ function irParaCliente(){ msgHome(""); mostrar("tela-cliente"); }
 function voltarHome(){ mostrar("tela-home"); }
 
 async function sair(){
-  usuarioAtual = null; _token = null; _wbItemId = null;
+  usuarioAtual = null; _token = null; _wbItemId = null; _wbSessionId = null; dados = { processos: [], historico: [], equipe: [] }; fecharModal();
   try{
     if(_msal){
       const conta = _msal.getAllAccounts()[0];
