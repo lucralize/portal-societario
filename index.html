@@ -4847,6 +4847,7 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
       '<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;">'+
         '<span class="pill status-'+p.status+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span>'+
         (p.ordemServico ? '<span class="pill" style="background:var(--surface-2); color:var(--ink-soft);">Ordem de serviço: <span class="mono" style="margin-left:.3em; font-weight:700;">'+esc(p.ordemServico)+'</span></span>' : '')+
+        (adminMode ? htmlCodigoAcompanhamento(p) : '')+
         (podeDesistir ? '<button class="btn btn-danger btn-sm" onclick="PS.openDesistirModal(\''+p.id+'\')">Desistir do processo</button>' : '')+
       '</div>'+
       (adminMode ? '<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;">'+responsavelInline+divisaoInline+'</div>' : '')+
@@ -5261,8 +5262,7 @@ function processoRowHtml(p){
 function renderAdminProcessosRows(){
   var f = adminProcessosFiltro;
   var rows = processosVisiveis().slice().sort(compararOrdemSolicitacao).filter(function(p){
-    var nomeBusca = nomeParaProcesso(p);
-    if(f.empresa && nomeBusca.toLowerCase().indexOf(f.empresa.toLowerCase())===-1) return false;
+    if(f.empresa && !processoCorrespondeBusca(p, f.empresa)) return false;
     if(f.servico && p.servicoId!==f.servico) return false;
     if(f.status && p.status!==f.status) return false;
     if(f.data && p.criadoEm!==f.data) return false;
@@ -5297,7 +5297,7 @@ function renderAdminProcessos(){
   var uAtual = currentUser();
   var podeIncluirProcesso = !uAtual || uAtual.role!=='freelancer';
   var theadHtml = '<thead><tr>'+
-    '<th>Empresa<input type="text" class="th-filtro" id="flt-empresa" placeholder="Buscar..." value="'+esc(f.empresa)+'" oninput="PS.filtrarProcessosLive()"></th>'+
+    '<th>Empresa<input type="text" class="th-filtro" id="flt-empresa" placeholder="Empresa, OS ou código" title="Busque por empresa, CNPJ, número da OS ou código de acompanhamento" value="'+esc(f.empresa)+'" oninput="PS.filtrarProcessosLive()"></th>'+
     '<th>Serviço<select class="th-filtro" id="flt-servico" onchange="PS.filtrarProcessosLive()"><option value="">Todos</option>'+servicoOptions+'</select></th>'+
     '<th>Lucralize<select class="th-filtro" id="flt-divisao" onchange="PS.filtrarProcessosLive()"><option value="">Todas</option>'+divisaoOptions+'</select></th>'+
     '<th>Status<select class="th-filtro" id="flt-status" onchange="PS.filtrarProcessosLive()"><option value="">Todos</option>'+statusOptions+'</select></th>'+
@@ -5542,7 +5542,8 @@ async function confirmarIncluirProcessoManual(){
     formularioManual: {arquivo:arquivo||null},
     empresaId: empresaId,
     divisao: empresaObj ? (empresaObj.divisao || null) : null,
-    ordemServico: await gerarOrdemServico()
+    ordemServico: await gerarOrdemServico(),
+    codigoAcompanhamento: gerarCodigoAcompanhamento()
   };
 
   var salvo = await salvarProcessoNoServidor(processo);
@@ -5954,6 +5955,62 @@ async function vistoriaNaoNecessaria(id){
 }
 
 /* =========================================================
+   CÓDIGO DE ACOMPANHAMENTO (parte do cliente, etapa 1: lado da equipe)
+   Cada processo tem a OS sequencial (interna) e um código aleatório, que é o que o
+   cliente usa para consultar o processo sem ter conta. O código fica no próprio
+   processo (p.codigoAcompanhamento).
+   ========================================================= */
+function gerarCodigoAcompanhamento(){
+  var usados = {};
+  state.processes.forEach(function(p){ if(p.codigoAcompanhamento) usados[p.codigoAcompanhamento] = true; });
+  for(var t = 0; t < 10; t++){
+    var b = new Uint8Array(6);
+    crypto.getRandomValues(b);                                   /* 48 bits aleatórios do navegador */
+    var hex = Array.prototype.map.call(b, function(x){ return ('0'+x.toString(16)).slice(-2); }).join('').toUpperCase();
+    var c = hex.slice(0,4)+'-'+hex.slice(4,8)+'-'+hex.slice(8,12);
+    if(!usados[c]) return c;
+  }
+  throw new Error('Não foi possível gerar um código de acompanhamento único.');
+}
+function soAlfaNum(s){ return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+/* busca da lista: empresa, CNPJ, OS ou código (com ou sem hífen, maiúsculas ou minúsculas) */
+function processoCorrespondeBusca(p, termo){
+  var t = String(termo || '').trim().toLowerCase();
+  if(!t) return true;
+  if(nomeParaProcesso(p).toLowerCase().indexOf(t) !== -1) return true;
+  var tn = soAlfaNum(t);
+  if(tn.length < 3) return false;                                /* termos muito curtos só valem para o nome da empresa */
+  var campos = [docParaProcesso(p), p.ordemServico, p.codigoAcompanhamento];
+  for(var i = 0; i < campos.length; i++){
+    var c = soAlfaNum(campos[i]);
+    if(c && c.indexOf(tn) !== -1) return true;
+  }
+  return false;
+}
+/* bloco que aparece no detalhe do processo, só para a equipe */
+function htmlCodigoAcompanhamento(p){
+  var estilo = 'background:var(--surface-2); color:var(--ink-soft);';
+  if(!p.codigoAcompanhamento){
+    return '<span class="pill" style="'+estilo+' color:var(--ink-faint);">Sem código de acompanhamento</span>';
+  }
+  var c = esc(p.codigoAcompanhamento);
+  return '<span class="pill" style="'+estilo+'">Código do cliente: <span class="mono" style="margin-left:.3em; font-weight:700;">'+c+'</span>'+
+    '<button class="btn btn-ghost btn-sm" style="margin-left:.5em; padding:.15em .6em;" title="Copiar código" onclick="PS.copiarCodigo(\''+c+'\')">Copiar</button></span>';
+}
+function copiarCodigo(codigo){
+  function feito(){ toast('Código copiado: '+codigo); }
+  function reserva(){
+    var ta = document.createElement('textarea');
+    ta.value = codigo; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); feito(); }catch(e){ toast('Não foi possível copiar. Código: '+codigo); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(codigo).then(feito, reserva); }
+  else reserva();
+}
+
+/* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
 window.PS = {
@@ -5993,7 +6050,8 @@ window.PS = {
   linkPublicoIniciarFluxo: linkPublicoIniciarFluxo,
   abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
   abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario,
-  vistoriaNaoNecessaria: vistoriaNaoNecessaria
+  vistoriaNaoNecessaria: vistoriaNaoNecessaria,
+  copiarCodigo: copiarCodigo
 };
 
 /* Link avulso (ex.: para envio por WhatsApp): abrir direto na tela de
