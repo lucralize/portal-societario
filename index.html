@@ -687,7 +687,7 @@ var SERVICES = [
     valorTextoCustomHtml:'<p style="margin:0;">A Lucralize oferece <strong>gratuitamente</strong> o serviço de abertura da empresa para novos clientes.</p>'+
       '<p style="margin:.7rem 0 0;">Os custos das <strong>taxas necessárias para a abertura são de responsabilidade do cliente</strong>, incluindo: <strong>Junta Comercial, certificado digital e Taxa de Localização e Funcionamento</strong>. Os valores das taxas da Junta Comercial e da Prefeitura variam de acordo com o <strong>Estado e Município</strong> onde a empresa será registrada.</p>',
     documentos:['RG e CPF (ou CNH) de todos os sócios','Guia de IPTU do imóvel do CNPJ (apenas para quem optar por não utilizar o endereço fiscal Lucralize)','Definição do objeto social (atividades a exercer)','Definição do capital social e da participação de cada sócio','Endereço da sede (ou autorização de uso do endereço fiscal Lucralize)','E-mail e telefone de contato de cada sócio'],
-    etapas:['Aguardando complemento das informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial','Inscrição do CNPJ e Regime Tributário','Certificado Digital','Licenciamento e Alvará']
+    etapas:['Recebimento de informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial','Inscrição do CNPJ e Regime Tributário','Certificado Digital','Licenciamento e Alvará']
   },
   {
     id:'transformacao-mei-me', categoria:'Abertura e Transformação de CNPJ',
@@ -703,7 +703,7 @@ var SERVICES = [
     valorTextoCustomHtml:'<p style="margin:0;">A Lucralize oferece <strong>gratuitamente</strong> o serviço de transformação da empresa para novos clientes.</p>'+
       '<p style="margin:.7rem 0 0;">Os custos das <strong>taxas necessárias para a transformação são de responsabilidade do cliente</strong>, incluindo: <strong>Junta Comercial, certificado digital e Taxa de Localização e Funcionamento</strong>. Os valores das taxas da Junta Comercial e da Prefeitura variam de acordo com o <strong>Estado e Município</strong> onde a empresa será registrada.</p>',
     documentos:['RG e CPF (ou CNH) de todos os sócios','Guia de IPTU do imóvel do CNPJ (apenas para quem optar por não utilizar o endereço fiscal Lucralize)','Definição do objeto social (atividades a exercer)','Definição do capital social e da participação de cada sócio','Endereço da sede (ou autorização de uso do endereço fiscal Lucralize)','E-mail e telefone de contato de cada sócio'],
-    etapas:['Aguardando complemento das informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial','Inscrição do CNPJ e Regime Tributário','Certificado Digital','Licenciamento e Alvará']
+    etapas:['Recebimento de informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial','Inscrição do CNPJ e Regime Tributário','Certificado Digital','Licenciamento e Alvará']
   },
   {
     id:'alteracao-simples', categoria:'Alterações e Baixa da Empresa',
@@ -738,7 +738,7 @@ var SERVICES = [
     prazoInicio:'Início em até 24 horas após a confirmação do pagamento e o envio de todas as informações.',
     prazoConclusao:{dias:5, confirmado:false, obs:'estimado — depende da emissão de certidões pelos órgãos'},
     documentos:['Contrato social consolidado','Certidões negativas de débitos (Federal, Estadual e Municipal)','Comprovação de encerramento das atividades','RG e CPF dos sócios','Procuração (quando aplicável)'],
-    etapas:['Pagamento confirmado e dados recebidos','Levantamento de certidões e pendências','Baixa protocolada na Junta Comercial','Baixa nas esferas Estadual e Municipal','Concluído — CNPJ baixado']
+    etapas:['Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial','Em análise pela Junta Comercial','CNPJ baixado']
   },
   {
     id:'ativacao-ie', categoria:'Inscrições e credenciamentos',
@@ -805,7 +805,7 @@ var SERVICES = [
     prazoInicio:'Início em até 24 horas após a confirmação do pagamento e o envio de todas as informações.',
     prazoConclusao:{dias:10, confirmado:false, obs:'estimado — varia conforme o órgão municipal e a atividade'},
     documentos:['CNPJ ativo','Inscrição municipal ativa','Contrato social vigente','Laudo ou comprovante específico da atividade, quando exigido (ex: vigilância sanitária, Corpo de Bombeiros)'],
-    etapas:['Pagamento confirmado e dados recebidos','Documentação em análise','Protocolado na Prefeitura','Vistoria/análise do órgão (quando aplicável)','Concluído — alvará emitido']
+    etapas:['Viabilidade','Consulta prévia','Vistoria/análise do órgão (quando aplicável)','Concluído — alvará emitido']
   },
   {
     id:'alteracao-dbe', categoria:'Licenças e representação',
@@ -1274,6 +1274,15 @@ var supa = {
         return { data: { path: path }, error: null };
       }catch(e){ console.error('[sharepoint] upload:', e); return { data: null, error: { message: e.message } }; }
     },
+    remove: async function(paths){
+      try{
+        for(var i = 0; i < paths.length; i++){
+          try{ await msGraph('DELETE', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + paths[i])); }
+          catch(e){ if(e.status !== 404) throw e; }      /* já não existe: tudo certo */
+        }
+        return { data: paths, error: null };
+      }catch(e){ console.error('[sharepoint] remover:', e); return { data: null, error: { message: e.message } }; }
+    },
     createSignedUrl: async function(path){
       try{
         var it = await msGraph('GET', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + path));
@@ -1389,7 +1398,7 @@ function rowParaUsuario(row){
 function empresaParaRow(c){ return {id:c.id, dados:c}; }
 function rowParaEmpresa(row){ var c = Object.assign({}, row.dados); c.id = row.id; return c; }
 function processoParaRow(p){ return {id:p.id, empresa_id:p.empresaId||null, responsavel_id:p.responsavelId||null, dados:p}; }
-function rowParaProcesso(row){ var p = Object.assign({}, row.dados); p.id = row.id; return p; }
+function rowParaProcesso(row){ var p = Object.assign({}, row.dados); p.id = row.id; return iniciarSemPagamento(p); }
 function excluidoParaRow(x){ return {id:x.id, dados:x}; }
 function rowParaExcluido(row){ var x = Object.assign({}, row.dados); x.id = row.id; return x; }
 
@@ -1750,6 +1759,7 @@ async function salvarProcessoNoServidor(processo, ehNovo){
   }
 }
 async function finalizarNovoProcesso(processo, toastLogado){
+  iniciarSemPagamento(processo);
   var u = currentUser();
   processo.ordemServico = await gerarOrdemServico();
   if(u){
@@ -1814,7 +1824,7 @@ function processosVisiveis(){
   var meus = state.processes.filter(function(p){ return p.responsavelId===u.id; });
   if(u.role==='freelancer'){
     /* freelancer só enxerga o processo depois que o administrador avançar a etapa
-       inicial (ex.: de "aguardando complemento" para "viabilidade") */
+       inicial (ex.: de "recebimento de informações" para "viabilidade") */
     meus = meus.filter(function(p){ return typeof p.etapaAtual==='number' && p.etapaAtual>=1; });
   }
   return meus;
@@ -1895,7 +1905,7 @@ function etapasDoProcesso(p){
        cliente. A abertura conclui em "Inscrição do CNPJ e Regime Tributário";
        a transformação (que não tem essa etapa) conclui em "Em análise pela
        Junta Comercial". */
-    var lista2 = ['Aguardando complemento das informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial'];
+    var lista2 = ['Recebimento de informações','Viabilidade do nome e do endereço','Documento Básico de Entrada (DBE)','Módulo Integrador','Registro Digital na Junta Comercial'];
     lista2 = inserirAnaliseJunta(lista2);
     if(p.servicoId==='abertura-cnpj') lista2.push('Inscrição do CNPJ e Regime Tributário');
     return lista2;
@@ -1917,6 +1927,9 @@ function itensInternosDoProcesso(p){
   }
   if(p.servicoId==='abertura-cnpj' || p.servicoId==='transformacao-mei-me'){
     return ['Certificado Digital','Licenciamento e Alvará','Portal Nacional','Acesso à Prefeitura'];
+  }
+  if(p.servicoId==='baixa-cnpj'){
+    return ['Baixa nas esferas Estadual e Municipal'];
   }
   return [];
 }
@@ -3942,10 +3955,10 @@ function openSolicitarFormBaixa(){
   var blocoSemPendencias = '<div class="q-block" id="bax-bloco-sem-pendencias" style="display:none;">'+
     '<div class="q-title"><span class="q-num">2.</span>Envie as certidões negativas e o relatório de situação fiscal</div>'+
     '<div class="upload-list" style="display:flex; flex-direction:column; gap:.6rem;">'+
-      baxUploadRow('bax-cert-federal', 'Certidão Negativa Federal <span class="req-mark">*</span>')+
+      baxUploadRow('bax-cert-federal', 'Certidão Negativa Federal')+
       '<label class="radio-option" style="align-items:center;"><input type="checkbox" id="bax-cert-estadual-na" onchange="PS.baxToggleEstadualNA()"> Não possuo inscrição estadual (não se aplica)</label>'+
-      baxUploadRow('bax-cert-estadual', 'Certidão Negativa Estadual <span class="req-mark">*</span>')+
-      baxUploadRow('bax-cert-municipal', 'Certidão Negativa Municipal <span class="req-mark">*</span>')+
+      baxUploadRow('bax-cert-estadual', 'Certidão Negativa Estadual')+
+      baxUploadRow('bax-cert-municipal', 'Certidão Negativa Municipal')+
       baxUploadRow('bax-relatorio-fiscal', 'Relatório de situação fiscal <span class="req-mark">*</span>')+
     '</div>'+
   '</div>';
@@ -4029,10 +4042,7 @@ function baxValidar(){
   if(!q1radio){ erros.push('Se o CNPJ possui pendências em aberto (pergunta 1)'); return erros; }
 
   if(q1radio.value==='nao'){
-    reqFile('bax-cert-federal', 'Certidão Negativa Federal');
-    var estadualNA = document.getElementById('bax-cert-estadual-na');
-    if(!(estadualNA && estadualNA.checked)) reqFile('bax-cert-estadual', 'Certidão Negativa Estadual');
-    reqFile('bax-cert-municipal', 'Certidão Negativa Municipal');
+    /* certidões (Federal, Estadual e Municipal): não obrigatórias quando o CNPJ está regular */
     reqFile('bax-relatorio-fiscal', 'Relatório de situação fiscal');
   } else {
     var algumParcelamento = false;
@@ -4653,7 +4663,7 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
   var company = getCompany(p.empresaId);
   var steps = stepStates(p, s);
 
-  var fullSteps = [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}].concat(steps);
+  var fullSteps = (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
 
   var stepperHtml = fullSteps.map(function(st, i){
     var node = st.state==='concluida' ? '✓' : (i+1);
@@ -4687,16 +4697,17 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
     '</div>';
   }).join('<div style="height:.55rem;"></div>');
 
-  function fileRows(list){
-    return list.length ? list.map(function(d){
+  function fileRows(list, categoria){
+    return list.length ? list.map(function(d, i){
       var btn = d.path
         ? '<button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+esc(d.path)+'\')">Baixar</button>'
         : '<button class="btn btn-subtle btn-sm" disabled title="Arquivo original não disponível para download">Baixar</button>';
-      return '<div class="file-row"><span class="ic">📄</span><span class="name">'+esc(d.nome)+'</span>'+btn+'</div>';
+      var excluirBtn = (adminMode && categoria) ? '<button class="btn btn-danger btn-sm" onclick="PS.abrirModalExcluirArquivo(\''+p.id+'\',\''+categoria+'\','+i+',\''+esc(d.path||'')+'\')">Excluir</button>' : '';
+      return '<div class="file-row"><span class="ic">📄</span><span class="name">'+esc(d.nome)+'</span>'+btn+excluirBtn+'</div>';
     }).join('') : '';
   }
-  var docsFinaisHtml = fileRows(p.documentosFinais) || '<p style="font-size:.84rem; color:var(--ink-faint);">Os documentos finais ficarão disponíveis aqui assim que o processo for concluído.</p>';
-  var docsAndamentoHtml = fileRows(p.documentosAndamento) || '<p style="font-size:.84rem; color:var(--ink-faint);">Nenhum documento de andamento anexado ainda.</p>';
+  var docsFinaisHtml = fileRows(p.documentosFinais, 'finais') || '<p style="font-size:.84rem; color:var(--ink-faint);">Os documentos finais ficarão disponíveis aqui assim que o processo for concluído.</p>';
+  var docsAndamentoHtml = fileRows(p.documentosAndamento, 'andamento') || '<p style="font-size:.84rem; color:var(--ink-faint);">Nenhum documento de andamento anexado ainda.</p>';
 
   var solicitacaoHtml = renderSolicitacaoBlock(p, !adminMode);
   var formularioHtml = p.formularioAbertura ? renderFormularioAberturaResumo(p) : (p.formularioAlteracao ? renderFormularioAlteracaoResumo(p) : (p.formularioBaixa ? renderFormularioBaixaResumo(p) : (p.formularioAlvara ? renderFormularioAlvaraResumo(p) : (p.formularioRepresentante ? renderFormularioRepresentanteResumo(p) : (p.formularioManual ? renderFormularioManualResumo(p) : '')))));
@@ -4980,7 +4991,7 @@ function proximaEtapaLabel(p){
   return null;
 }
 function etapaExigePendencias(label){
-  return !!label && label.toLowerCase().indexOf('complemento')!==-1;
+  return !!label && label.toLowerCase().indexOf('recebimento de informações')!==-1;
 }
 function avancarEtapa(id){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
@@ -5060,7 +5071,7 @@ function confirmarAvancoComplemento(id){
   executarAvancoEtapa(id, texto);
 }
 function reiniciarProcessoOpcoesHtml(p, s){
-  var opcoes = [{idx:-1, label:'Pagamento confirmado'}].concat(etapasDoProcesso(p).map(function(label, i){ return {idx:i, label:label}; }));
+  var opcoes = (servicoSemPagamento(p.servicoId) ? [] : [{idx:-1, label:'Pagamento confirmado'}]).concat(etapasDoProcesso(p).map(function(label, i){ return {idx:i, label:label}; }));
   return opcoes.map(function(o){
     var atual = (p.status==='aguardando_pagamento' ? -1 : p.etapaAtual) === o.idx;
     return '<label class="radio-option"><input type="radio" name="reiniciar-etapa" value="'+o.idx+'"'+(atual?' checked':'')+'> '+esc(o.label)+(atual?' <span style="color:var(--ink-faint); font-weight:500;">(etapa atual)</span>':'')+'</label>';
@@ -5424,7 +5435,7 @@ function renderAdminExcluidos(){
 function manualEtapaOptionsHtml(servicoId){
   var s = SERVICE_MAP[servicoId];
   if(!s) return '';
-  var opts = ['<option value="aguardando_pagamento">Aguardando pagamento</option>'];
+  var opts = servicoSemPagamento(servicoId) ? [] : ['<option value="aguardando_pagamento">Aguardando pagamento</option>'];
   etapasBaseParaServico(servicoId).forEach(function(label, i){
     opts.push('<option value="'+i+'">'+esc(label)+'</option>');
   });
@@ -5571,7 +5582,7 @@ function renderAdminUsuarios(){
       '<td><span class="role-chip '+chip.cls+'">'+chip.label+'</span></td>'+
       '<td class="mono">'+esc(u.telefone||'—')+'</td>'+
       '<td style="font-size:.78rem; color:var(--ink-soft);">'+esc(fmtDataHora(u.ultimoAcesso))+'</td>'+
-      '<td><button class="btn btn-ghost btn-sm" onclick="PS.abrirEditarUsuario(\''+u.id+'\')">Editar</button></td>'+
+      '<td><button class="btn btn-ghost btn-sm" onclick="PS.abrirEditarUsuario(\''+u.id+'\')">Editar</button>'+(u.id===(currentUser()||{}).id ? '' : '<button class="btn btn-danger btn-sm" style="margin-left:.35rem;" onclick="PS.abrirModalExcluirUsuario(\''+u.id+'\')">Excluir</button>')+'</td>'+
     '</tr>';
   }).join('');
   return ''+
@@ -5808,6 +5819,110 @@ function abrirModalAcessoCriado(nome, email){
 }
 
 
+
+/* =========================================================
+   AJUSTES (documento "Instruções para ajustes no portal")
+   ========================================================= */
+/* Transformação e Abertura de CNPJ não têm etapa de pagamento: o processo já nasce em
+   "Recebimento de informações" (primeira etapa da linha do tempo). */
+function servicoSemPagamento(id){ return id==='abertura-cnpj' || id==='transformacao-mei-me'; }
+function iniciarSemPagamento(p){
+  if(p && servicoSemPagamento(p.servicoId) && p.status==='aguardando_pagamento'){ p.status='em_andamento'; p.etapaAtual=0; }
+  return p;
+}
+
+/* ---------- Exclusão de arquivos anexados pela equipe (andamento e documentos finais) ---------- */
+function abrirModalExcluirArquivo(id, categoria, idx, path){
+  var p = state.processes.filter(function(x){return x.id===id;})[0];
+  if(!p) return;
+  var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
+  var d = (p[campo]||[])[idx];
+  if(!d){ toast('Arquivo não encontrado. Atualize a tela e tente novamente.'); return; }
+  var aviso = categoria==='finais'
+    ? 'Ele será removido do processo e deixará de aparecer também para o cliente.'
+    : 'Ele será removido do processo.';
+  var html = ''+
+  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
+    '<div class="modal-box">'+
+      '<div class="panel-head"><h3 style="font-size:1.05rem;">Excluir arquivo</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
+      '<div class="panel-body">'+
+        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Tem certeza que deseja excluir o arquivo <strong style="color:var(--ink);">'+esc(d.nome)+'</strong>? '+aviso+' Esta ação não pode ser desfeita.</p>'+
+      '</div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirArquivo(\''+id+'\',\''+categoria+'\','+idx+',\''+esc(path||'')+'\')">Excluir arquivo</button></div>'+
+    '</div>'+
+  '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+async function confirmarExcluirArquivo(id, categoria, idx, path){
+  var p = state.processes.filter(function(x){return x.id===id;})[0];
+  if(!p){ closePanel(); return; }
+  var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
+  var lista = p[campo] || [];
+  var pos = -1;
+  if(lista[idx] && (lista[idx].path||'')===(path||'')) pos = idx;
+  else if(path){ for(var i=0;i<lista.length;i++){ if(lista[i].path===path){ pos = i; break; } } }
+  if(pos<0){ closePanel(); render(); toast('Esse arquivo já não está mais no processo.'); return; }
+  var snapshot = JSON.parse(JSON.stringify(p));
+  var removido = lista.splice(pos, 1)[0];
+  /* o arquivo original de um processo incluído manualmente aparece também no bloco "formulário manual" */
+  if(removido.path && p.formularioManual && p.formularioManual.arquivo && p.formularioManual.arquivo.path===removido.path){
+    p.formularioManual.arquivo = null;
+  }
+  saveState(); closePanel(); render();
+  var ok = await salvarProcessoNoServidor(p);
+  if(!ok){
+    Object.assign(p, snapshot);
+    saveState(); render();
+    toast('Não foi possível excluir o arquivo. Verifique sua internet e tente novamente.');
+    return;
+  }
+  /* o processo já não aponta mais para o arquivo; agora apaga o arquivo em si (se falhar, sobra só um arquivo solto) */
+  if(removido.path){
+    try{
+      var r = await supa.storage.from(STORAGE_BUCKET).remove([removido.path]);
+      if(r && r.error) console.warn('Arquivo removido do processo, mas não do SharePoint:', r.error.message);
+    }catch(e){ console.warn('Arquivo removido do processo, mas não do SharePoint:', e); }
+  }
+  toast('Arquivo excluído.');
+}
+
+/* ---------- Exclusão de usuários (administrador) ---------- */
+function abrirModalExcluirUsuario(id){
+  var eu = currentUser(), u = getUser(id);
+  if(!eu || eu.role!=='admin' || !u) return;
+  if(u.id===eu.id){ toast('Você não pode excluir o seu próprio usuário.'); return; }
+  var admins = state.users.filter(function(x){ return x.role==='admin' && x.ativo!==false; });
+  if(u.role==='admin' && admins.length<=1){ toast('Não é possível excluir o único administrador.'); return; }
+  var qtd = state.processes.filter(function(p){ return p.responsavelId===id; }).length;
+  var html = ''+
+  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
+    '<div class="modal-box">'+
+      '<div class="panel-head"><h3 style="font-size:1.05rem;">Excluir usuário</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
+      '<div class="panel-body">'+
+        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Tem certeza que deseja excluir <strong style="color:var(--ink);">'+esc(u.nome)+'</strong> ('+esc(u.email||'')+')? A pessoa perde o acesso ao portal.'+
+          (qtd===1 ? ' O processo sob responsabilidade dela ficará sem responsável.' : (qtd ? ' Os '+qtd+' processos sob responsabilidade dela ficarão sem responsável.' : ''))+' Esta ação não pode ser desfeita.</p>'+
+      '</div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirUsuario(\''+id+'\')">Excluir usuário</button></div>'+
+    '</div>'+
+  '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+async function confirmarExcluirUsuario(id){
+  var eu = currentUser(), u = getUser(id);
+  if(!eu || eu.role!=='admin' || !u || u.id===eu.id){ closePanel(); return; }
+  var btn = document.querySelector('.panel-foot .btn-danger'); if(btn){ btn.disabled = true; btn.textContent = 'Excluindo…'; }
+  var res = await supa.from('usuarios').delete().eq('id', id);
+  if(res.error){
+    if(btn){ btn.disabled = false; btn.textContent = 'Excluir usuário'; }
+    toast('Não foi possível excluir o usuário: '+res.error.message);
+    return;
+  }
+  state.users = state.users.filter(function(x){ return x.id!==id; });
+  state.processes.forEach(function(p){ if(p.responsavelId===id) p.responsavelId = null; });
+  saveState(); closePanel(); render();
+  toast('Usuário excluído.');
+}
+
 /* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
@@ -5845,7 +5960,9 @@ window.PS = {
   manualAtualizarEtapas: manualAtualizarEtapas, manualToggleEmpresa: manualToggleEmpresa,
   goLinkPublico: goLinkPublico, linkPublicoSair: linkPublicoSair, linkPublicoSubmitGate: linkPublicoSubmitGate,
   linkPublicoAcompanharBuscar: linkPublicoAcompanharBuscar, linkPublicoSetTipo: linkPublicoSetTipo,
-  linkPublicoIniciarFluxo: linkPublicoIniciarFluxo
+  linkPublicoIniciarFluxo: linkPublicoIniciarFluxo,
+  abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
+  abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario
 };
 
 /* Link avulso (ex.: para envio por WhatsApp): abrir direto na tela de
