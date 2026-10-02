@@ -1957,7 +1957,7 @@ function stepStates(process, service){
     else if(i < process.etapaAtual){ st='concluida'; }
     else if(i === process.etapaAtual){ st='atual'; }
     else{ st='pendente'; }
-    out.push({label:steps[i], state:st});
+    out.push({label:(process.vistoriaNaoNecessaria && steps[i]===ETAPA_VISTORIA) ? 'Vistoria/análise do órgão — não necessária' : steps[i], state:st});
   }
   return out;
 }
@@ -3959,7 +3959,7 @@ function openSolicitarFormBaixa(){
       '<label class="radio-option" style="align-items:center;"><input type="checkbox" id="bax-cert-estadual-na" onchange="PS.baxToggleEstadualNA()"> Não possuo inscrição estadual (não se aplica)</label>'+
       baxUploadRow('bax-cert-estadual', 'Certidão Negativa Estadual')+
       baxUploadRow('bax-cert-municipal', 'Certidão Negativa Municipal')+
-      baxUploadRow('bax-relatorio-fiscal', 'Relatório de situação fiscal <span class="req-mark">*</span>')+
+      baxUploadRow('bax-relatorio-fiscal', 'Relatório de situação fiscal')+
     '</div>'+
   '</div>';
 
@@ -4043,7 +4043,6 @@ function baxValidar(){
 
   if(q1radio.value==='nao'){
     /* certidões (Federal, Estadual e Municipal): não obrigatórias quando o CNPJ está regular */
-    reqFile('bax-relatorio-fiscal', 'Relatório de situação fiscal');
   } else {
     var algumParcelamento = false;
     ['federal','municipal','estadual'].forEach(function(esfera){
@@ -4736,7 +4735,7 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
       '<span class="eyebrow">Ações do administrador</span>'+
       (p.status==='cancelado' ? '<div class="pill status-cancelado" style="align-self:flex-start;">Processo cancelado pelo cliente</div>' :
         (bloqueiaConfirmarPagamento ? '<div class="pill status-aguardando_pagamento" style="align-self:flex-start;">Aguardando confirmação de pagamento pelo administrador</div>' :
-        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+p.id+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>')))+
+        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+p.id+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>')))+botaoVistoriaNaoNecessaria(p)+
       '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalReiniciar(\''+p.id+'\')">↺ Reiniciar processo</button>'+
       (!ehFreelancer ? '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button>' : '')+
     '</div>';
@@ -5111,6 +5110,7 @@ async function confirmarReiniciarProcesso(id){
   } else {
     p.status='em_andamento'; p.etapaAtual=idx;
   }
+  if(p.vistoriaNaoNecessaria && idx <= etapasDoProcesso(p).indexOf(ETAPA_VISTORIA)) p.vistoriaNaoNecessaria = false;   /* voltou para antes da vistoria: ela volta a ser avaliada */
   var label = idx===-1 ? 'Pagamento confirmado' : etapasDoProcesso(p)[idx];
   p.historico.push({data:todayISO(), hora:nowHM(), texto:'Processo reiniciado manualmente pela equipe Lucralize para a etapa: '+label+'.'+(statusAnterior!==p.status?' (status anterior: '+statusLabel(statusAnterior)+')':''), autor:nomeAutorAtual()});
   saveState();
@@ -5923,6 +5923,36 @@ async function confirmarExcluirUsuario(id){
   toast('Usuário excluído.');
 }
 
+/* ---------- Alvará: "Vistoria não necessária" ---------- */
+var ETAPA_VISTORIA = 'Vistoria/análise do órgão (quando aplicável)';
+function botaoVistoriaNaoNecessaria(p){
+  if(p.servicoId!=='alvara-funcionamento' || p.status!=='em_andamento' || p.vistoriaNaoNecessaria) return '';
+  var iV = etapasDoProcesso(p).indexOf(ETAPA_VISTORIA);
+  if(iV<0 || p.etapaAtual<iV-1 || p.etapaAtual>iV) return '';   /* só quando a vistoria é a próxima etapa ou a atual */
+  return '<button class="btn btn-ghost btn-block" onclick="PS.vistoriaNaoNecessaria(\''+p.id+'\')">Vistoria não necessária</button>';
+}
+async function vistoriaNaoNecessaria(id){
+  var p = state.processes.filter(function(x){return x.id===id;})[0];
+  if(!p) return;
+  var etapas = etapasDoProcesso(p);
+  var iV = etapas.indexOf(ETAPA_VISTORIA);
+  if(p.servicoId!=='alvara-funcionamento' || iV<0 || p.status!=='em_andamento' || p.vistoriaNaoNecessaria) return;
+  var snapshot = JSON.parse(JSON.stringify(p));
+  var destino = etapas.length-1;
+  p.vistoriaNaoNecessaria = true;
+  p.etapaAtual = destino;    /* pula direto para a última etapa; concluir continua sendo um clique deliberado (ver executarAvancoEtapa) */
+  p.historico.push({data:todayISO(), hora:nowHM(), texto:'Vistoria/análise do órgão não necessária para este processo. '+etapas[destino]+'.', autor:nomeAutorAtual()});
+  saveState(); render();
+  var ok = await salvarProcessoNoServidor(p);
+  if(ok){
+    toast('Vistoria/análise marcada como não necessária.');
+  } else {
+    Object.assign(p, snapshot);
+    saveState(); render();
+    toast('Não foi possível atualizar o processo. Verifique sua internet e tente novamente.');
+  }
+}
+
 /* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
@@ -5962,7 +5992,8 @@ window.PS = {
   linkPublicoAcompanharBuscar: linkPublicoAcompanharBuscar, linkPublicoSetTipo: linkPublicoSetTipo,
   linkPublicoIniciarFluxo: linkPublicoIniciarFluxo,
   abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
-  abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario
+  abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario,
+  vistoriaNaoNecessaria: vistoriaNaoNecessaria
 };
 
 /* Link avulso (ex.: para envio por WhatsApp): abrir direto na tela de
