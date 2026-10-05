@@ -390,6 +390,19 @@
   .home-back{align-self:flex-start; background:transparent; border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:var(--radius-s); padding:.5em 1em; font-family:inherit; font-weight:600; font-size:.85rem; cursor:pointer;}
   .home-back:hover{border-color:var(--brand-cyan); color:var(--brand-cyan);}
   .home-foot{font-size:.72rem; color:rgba(255,255,255,.5);}
+
+  /* ---------- área do cliente ---------- */
+  .cli-card{width:100%; text-align:left; background:var(--surface); color:var(--ink); border-radius:var(--radius-m); padding:1.4rem 1.5rem; display:flex; flex-direction:column; gap:.95rem; box-shadow:0 20px 60px -24px rgba(0,0,0,.6);}
+  .cli-card h2{font-size:1.2rem; color:var(--ink);}
+  .cli-txt{margin:0; font-size:.88rem; color:var(--ink-soft); line-height:1.5;}
+  .cli-sub{font-size:.82rem; color:var(--ink-soft);}
+  .cli-eyebrow{font-size:.66rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint);}
+  .cli-meta{display:flex; align-items:center; gap:.7rem; flex-wrap:wrap;}
+  .cli-input{width:100%; padding:.8em .9em; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:1.15rem; letter-spacing:.08em; text-align:center; text-transform:uppercase;}
+  .cli-input:focus{outline:2px solid var(--primary-soft); border-color:var(--primary);}
+  .cli-erro{font-size:.82rem; background:var(--danger-bg); border:1px solid var(--danger); border-radius:var(--radius-s); padding:.6rem .8rem; color:var(--ink);}
+  .cli-aviso{font-size:.84rem; background:var(--warning-bg); border:1px solid var(--warning); border-radius:var(--radius-s); padding:.75rem .9rem; color:var(--ink); line-height:1.5;}
+  .cli-aviso .mono{font-weight:700; letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -1030,11 +1043,15 @@ var XLT = {
     unshape: function(row){ var d = row.dados || {}; return { Id: row.id, Nome: d.nome || '', CNPJ: d.cnpj || '', DadosJson: JSON.stringify(d) }; }
   },
   processos: {
-    tab: 'Processos', cols: ['Id','OS','ServicoId','Status','Divisao','EmpresaId','ResponsavelId','CriadoEm','DadosJson','DadosJson2','DadosJson3','DadosJson4'], chunks: ['DadosJson','DadosJson2','DadosJson3','DadosJson4'],
+    tab: 'Processos', cols: ['Id','OS','ServicoId','Status','Divisao','EmpresaId','ResponsavelId','CriadoEm','DadosJson','DadosJson2','DadosJson3','DadosJson4','Codigo','Publico'], chunks: ['DadosJson','DadosJson2','DadosJson3','DadosJson4'],
+    derived: ['Codigo','Publico'],     /* calculadas a partir do processo; servem ao fluxo de consulta do cliente e não entram na comparação de mudanças */
+    novas: ['Codigo','Publico'],
     shape: function(c){ var d = xlParse(xlJoin(c, this.chunks)); d.id = String(c.Id); return { id: String(c.Id), empresa_id: d.empresaId || null, responsavel_id: d.responsavelId || null, dados: d }; },
     unshape: function(row){
       var d = row.dados || {};
-      var o = { Id: row.id, OS: d.ordemServico || '', ServicoId: d.servicoId || '', Status: d.status || '', Divisao: d.divisao || '', EmpresaId: row.empresa_id || '', ResponsavelId: row.responsavel_id || '', CriadoEm: d.criadoEm || '' };
+      var o = { Id: row.id, OS: d.ordemServico || '', ServicoId: d.servicoId || '', Status: d.status || '', Divisao: d.divisao || '', EmpresaId: row.empresa_id || '', ResponsavelId: row.responsavel_id || '', CriadoEm: d.criadoEm || '',
+        Codigo: d.codigoAcompanhamento || '',
+        Publico: d.codigoAcompanhamento ? JSON.stringify(publicoDoProcesso(d)) : '' };    /* só o que o cliente pode ver; o fluxo lê SÓ esta coluna */
       return Object.assign(o, xlSplit(JSON.stringify(d), this.chunks));
     }
   },
@@ -1048,7 +1065,7 @@ function xlCellsDe(cfg, arr){ var c = {}; cfg.cols.forEach(function(k, i){ c[k] 
 function xlBlank(arr){ return arr.every(function(v){ return v === '' || v == null; }); }
 function xlSig(t, row){
   var cfg = XLT[t], cells = cfg.unshape(row), o = {};
-  cfg.cols.forEach(function(k){ if(cfg.chunks.indexOf(k) === -1) o[k] = cells[k]; });
+  cfg.cols.forEach(function(k){ if(cfg.chunks.indexOf(k) === -1 && (cfg.derived || []).indexOf(k) === -1) o[k] = cells[k]; });
   o.json = xlParse(xlJoin(cells, cfg.chunks));
   return xlCanon(o);
 }
@@ -1064,7 +1081,14 @@ async function xlConferirColunas(t){
   var r = await msGraph('GET', '/drives/' + SP.driveId + '/items/' + _wbItemId + '/workbook/tables/' + cfg.tab + '/columns?$select=name');
   var nomes = (r.value || []).map(function(c){ return c.name; });
   var ok = cfg.cols.every(function(k, i){ return nomes[i] === k; });
-  if(!ok) throw new Error('A tabela "' + cfg.tab + '" da planilha não está no modelo esperado. Colunas esperadas, nesta ordem: ' + cfg.cols.join(', ') + '. Substitua pelo modelo novo (PortalSocietario.xlsx).');
+  if(!ok){
+    var faltam = (cfg.novas || []).filter(function(k){ return nomes.indexOf(k) === -1; });
+    var base = cfg.cols.filter(function(k){ return (cfg.novas || []).indexOf(k) === -1; });
+    if(faltam.length && base.every(function(k, i){ return nomes[i] === k; })){
+      throw new Error('Falta atualizar a planilha: adicione ao final da tabela "' + cfg.tab + '" as colunas ' + faltam.join(' e ') + ' (nessa ordem, formato Texto) e entre de novo.');
+    }
+    throw new Error('A tabela "' + cfg.tab + '" da planilha não está no modelo esperado. Colunas esperadas, nesta ordem: ' + cfg.cols.join(', ') + '.');
+  }
   _xlColsOk[t] = true;
 }
 async function xlRaw(t){
@@ -1094,9 +1118,11 @@ async function xlSelect(t, forcar){
   var cfg = XLT[t], raw = await xlRaw(t), out = [], sigs = {};
   raw.forEach(function(arr){
     if(xlBlank(arr)) return;
-    var row = cfg.shape(xlCellsDe(cfg, arr));
+    var cells = xlCellsDe(cfg, arr), row = cfg.shape(cells);
     if(!row.id) return;
     sigs[row.id] = xlSig(t, row); out.push(row);
+    /* processo que já tem código mas cujas colunas Codigo/Publico estão vazias ou diferentes: marca para regravar no próximo salvamento */
+    if(t === 'processos' && row.dados.codigoAcompanhamento && (String(cells.Codigo || '') !== row.dados.codigoAcompanhamento || !cells.Publico)) sigs[row.id] = '__atualizar_colunas__';
   });
   _xlBaseSig[t] = sigs;
   _xlCache[t] = { t: Date.now(), json: JSON.stringify(out) };
@@ -2082,14 +2108,10 @@ var homeMsg = '', homeCliente = false, semAcessoMsg = '';
 function renderLogin(){
   var corpo;
   if(homeCliente){
-    corpo = '<div class="home-card">'+
-      '<h2>Solicitação de serviço</h2>'+
-      '<p>O formulário para clientes está em construção e será liberado em breve.</p>'+
-      '<button class="home-back" onclick="PS.homeVoltar()">← Voltar</button>'+
-    '</div>';
+    corpo = renderClienteArea();
   } else {
     corpo = '<div class="home-choices">'+
-      '<button class="home-choice" onclick="PS.homeAbrirCliente()"><strong>Sou cliente</strong><span>Solicitar um serviço societário</span></button>'+
+      '<button class="home-choice" onclick="PS.homeAbrirCliente()"><strong>Sou cliente</strong><span>Solicitar ou consultar um serviço societário</span></button>'+
       '<button class="home-choice" id="home-btn-func" onclick="PS.entrarFuncionario()"><strong>Sou funcionário Lucralize</strong><span>Entrar com a conta Microsoft da Lucralize</span></button>'+
     '</div>'+
     (homeMsg ? '<div class="home-msg">'+esc(homeMsg)+'</div>' : '');
@@ -2111,8 +2133,8 @@ function renderSemAcesso(){
     '</div>'+
   '</div></div>';
 }
-function homeAbrirCliente(){ homeCliente = true; homeMsg = ''; render(); }
-function homeVoltar(){ homeCliente = false; render(); }
+function homeAbrirCliente(){ homeCliente = true; clienteTela = 'menu'; consultaResultado = null; consultaCodigo = ''; homeMsg = ''; render(); }
+function homeVoltar(){ homeCliente = false; consultaResultado = null; render(); }
 function msMensagemErro(err){
   var cod = (err && (err.errorCode || err.name)) || '';
   var msg = (err && err.message) || '';
@@ -2136,6 +2158,7 @@ async function entrarComContaMicrosoft(){
   if(motivo){ semAcessoMsg = motivo; state.session = null; state.view = {name:'sem-acesso'}; render(); return; }
   _xlUser = {id: achado.id, role: achado.role};
   await login(achado.id);
+  sincronizarSupabase();      /* regrava só o que está desatualizado (ex.: colunas Codigo/Publico de processos antigos) */
 }
 async function entrarFuncionario(){
   homeMsg = '';
@@ -4662,7 +4685,7 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
   var company = getCompany(p.empresaId);
   var steps = stepStates(p, s);
 
-  var fullSteps = (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
+  var fullSteps = passosParaCliente(p);   /* mesma lista que o cliente vê na consulta */
 
   var stepperHtml = fullSteps.map(function(st, i){
     var node = st.state==='concluida' ? '✓' : (i+1);
@@ -6011,6 +6034,130 @@ function copiarCodigo(codigo){
 }
 
 /* =========================================================
+   ÁREA DO CLIENTE (sem conta): "Solicitar serviço" e "Consultar serviço"
+   A consulta é feita por um fluxo do Power Automate que devolve SÓ a versão pública do
+   processo (coluna Publico da planilha). A página nunca lê a planilha nem o SharePoint.
+   ========================================================= */
+/* endereços dos fluxos do Power Automate (gatilho HTTP) — colar aqui depois de criar cada fluxo */
+var CLIENTE_API = {
+  consultar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/ed3891a749d6410f97a18ddb50980b7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zFPO-mfx4JYinr-ItKroFerz1Y3J4VZ4AYjKG3_ukmc',
+  criar: ''     /* fluxo "Criar" — próxima etapa */
+};
+
+/* ---------- versão pública do processo (gravada na coluna Publico) ---------- */
+/* mesma lista de etapas que a equipe vê no detalhe do processo (fonte única) */
+function passosParaCliente(p){
+  var s = SERVICE_MAP[p.servicoId];
+  var steps = s ? stepStates(p, s) : [];
+  return (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
+}
+function publicoDoProcesso(p){
+  var s = SERVICE_MAP[p.servicoId], emp = getCompany(p.empresaId);
+  return {
+    v: 1,
+    servico: s ? s.nome : '',
+    empresa: emp ? emp.nome : '',
+    status: p.status || '',
+    criadoEm: p.criadoEm || '',
+    passos: passosParaCliente(p).map(function(x){ return {t:x.label, s:x.state}; })
+  };
+}
+
+/* ---------- telas ---------- */
+var clienteTela = 'menu', consultaResultado = null, consultaCodigo = '';
+function renderClienteArea(){
+  if(clienteTela === 'solicitar'){
+    return '<div class="cli-card">'+
+      '<h2>Solicitar serviço</h2>'+
+      '<p class="cli-txt">O formulário de solicitação está em construção e será liberado em breve.</p>'+
+      '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.clienteVoltar()">← Voltar</button>'+
+    '</div>';
+  }
+  if(clienteTela === 'consultar') return consultaResultado ? renderConsultaResultado() : renderConsultaForm();
+  return '<div class="home-choices">'+
+      '<button class="home-choice" onclick="PS.clienteIr(\'solicitar\')"><strong>Solicitar serviço</strong><span>Abertura, alteração, baixa e outros serviços societários</span></button>'+
+      '<button class="home-choice" onclick="PS.clienteIr(\'consultar\')"><strong>Consultar serviço</strong><span>Acompanhar o andamento com o código que você recebeu</span></button>'+
+    '</div>'+
+    '<button class="home-back" onclick="PS.homeVoltar()">← Voltar</button>';
+}
+function renderConsultaForm(){
+  return '<div class="cli-card">'+
+    '<h2>Consultar serviço</h2>'+
+    '<p class="cli-txt">Digite o código de acompanhamento que você recebeu ao solicitar o serviço.</p>'+
+    '<div id="cli-erro" class="cli-erro" style="display:none;"></div>'+
+    '<input id="cli-codigo" class="cli-input mono" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="0000-0000-0000" value="'+esc(consultaCodigo)+'" oninput="PS.clienteMascara(this)" onkeydown="if(event.key===\'Enter\'){PS.clienteConsultar();}">'+
+    '<button class="btn btn-primary btn-block" id="cli-btn" onclick="PS.clienteConsultar()">Consultar</button>'+
+    '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.clienteVoltar()">← Voltar</button>'+
+  '</div>';
+}
+function renderConsultaResultado(){
+  var r = consultaResultado;
+  var passos = (r.passos || []).slice(0, 40).map(function(st, i){
+    var estado = (st.s === 'concluida' || st.s === 'atual') ? st.s : 'pendente';
+    var node = estado === 'concluida' ? '✓' : (i+1);
+    return '<div class="step '+estado+'">'+
+      '<div class="rail"><div class="node">'+node+'</div><div class="line"></div></div>'+
+      '<div class="step-body"><div class="title">'+esc(st.t)+'</div>'+(estado === 'atual' ? '<div class="when">Em andamento agora</div>' : '')+'</div>'+
+    '</div>';
+  }).join('');
+  var statusOk = ['aguardando_pagamento','em_andamento','concluido','cancelado'].indexOf(r.status) !== -1;
+  return '<div class="cli-card">'+
+    '<div><span class="cli-eyebrow">Seu processo</span><h2 style="margin-top:.2rem;">'+esc(r.servico || 'Serviço')+'</h2>'+
+      (r.empresa ? '<div class="cli-sub">'+esc(r.empresa)+'</div>' : '')+'</div>'+
+    '<div class="cli-meta">'+(statusOk ? '<span class="pill status-'+r.status+'"><span class="pill-dot"></span>'+esc(statusLabel(r.status))+'</span>' : '')+
+      (r.criadoEm ? '<span class="cli-sub">Solicitado em '+esc(fmtDate(r.criadoEm))+'</span>' : '')+'</div>'+
+    '<div class="stepper">'+passos+'</div>'+
+    '<div class="cli-aviso"><strong>Guarde seu código:</strong> <span class="mono">'+esc(consultaCodigo)+'</span><br>Ele é a única forma de consultar este processo.</div>'+
+    '<button class="btn btn-primary btn-block" onclick="PS.clienteNovaConsulta()">Consultar outro código</button>'+
+    '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.clienteVoltar()">← Voltar</button>'+
+  '</div>';
+}
+
+/* ---------- ações ---------- */
+function clienteIr(tela){ clienteTela = tela; consultaResultado = null; render(); }
+function clienteVoltar(){
+  if(clienteTela === 'menu'){ homeVoltar(); return; }
+  clienteTela = 'menu'; consultaResultado = null; consultaCodigo = ''; render();
+}
+function clienteNovaConsulta(){ consultaResultado = null; consultaCodigo = ''; render(); }
+/* só letras/números do código (O vira 0, I vira 1), em maiúsculas, no formato 0000-0000-0000 */
+function codigoSoHex(v){ return String(v || '').toUpperCase().replace(/O/g, '0').replace(/I/g, '1').replace(/[^0-9A-F]/g, '').slice(0, 12); }
+function codigoFormatado(hex){ return (hex.match(/.{1,4}/g) || []).join('-'); }
+function clienteMascara(el){ el.value = codigoFormatado(codigoSoHex(el.value)); }
+function clienteErro(msg){
+  var el = document.getElementById('cli-erro'); if(!el) return;
+  el.textContent = msg || ''; el.style.display = msg ? 'block' : 'none';
+}
+async function clienteConsultar(){
+  var inp = document.getElementById('cli-codigo'); if(!inp) return;
+  var hex = codigoSoHex(inp.value);
+  if(hex.length !== 12){ clienteErro('Digite o código completo, no formato 0000-0000-0000.'); return; }
+  var codigo = codigoFormatado(hex);
+  if(!CLIENTE_API.consultar){ console.warn('CLIENTE_API.consultar não configurado.'); clienteErro('A consulta ainda não está disponível. Tente novamente mais tarde.'); return; }
+  clienteErro('');
+  var btn = document.getElementById('cli-btn'); btn.disabled = true; btn.textContent = 'Consultando…';
+  var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 25000);
+  try{
+    var resp = await fetch(CLIENTE_API.consultar, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({acao:'consultar', codigo:codigo}), signal: ctl.signal, cache:'no-store' });
+    if(!resp.ok){ var corpoErro = ''; try{ corpoErro = (await resp.text()).slice(0, 400); }catch(e2){} throw new Error('HTTP '+resp.status+' '+corpoErro); }
+    var j = await resp.json();
+    if(j && j.ok === true && j.processo && Array.isArray(j.processo.passos)){
+      consultaResultado = j.processo; consultaCodigo = codigo; render(); return;
+    }
+    btn.disabled = false; btn.textContent = 'Consultar';
+    if(j && j.ok === false && j.erro === 'nao_encontrado') clienteErro('Nenhum processo encontrado com esse código. Confira se digitou corretamente.');
+    else if(j && j.ok === false && j.erro === 'codigo_invalido') clienteErro('Código inválido. Digite o código completo, no formato 0000-0000-0000.');
+    else { console.warn('Resposta inesperada da consulta:', j); clienteErro('Não foi possível consultar agora. Tente novamente em instantes.'); }
+  }catch(e){
+    console.error('Consulta do cliente:', e);
+    btn.disabled = false; btn.textContent = 'Consultar';
+    clienteErro(e && e.name === 'AbortError' ? 'A consulta demorou demais. Tente novamente.' : 'Não foi possível consultar agora. Verifique sua internet e tente novamente.');
+  }finally{
+    clearTimeout(tm);
+  }
+}
+
+/* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
 window.PS = {
@@ -6051,7 +6198,8 @@ window.PS = {
   abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
   abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario,
   vistoriaNaoNecessaria: vistoriaNaoNecessaria,
-  copiarCodigo: copiarCodigo
+  copiarCodigo: copiarCodigo,
+  clienteIr: clienteIr, clienteVoltar: clienteVoltar, clienteNovaConsulta: clienteNovaConsulta, clienteMascara: clienteMascara, clienteConsultar: clienteConsultar
 };
 
 /* Link avulso (ex.: para envio por WhatsApp): abrir direto na tela de
