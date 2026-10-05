@@ -932,6 +932,38 @@ var _xlCache = {};        /* tabela -> {t, rows}: cache curto para não reler a 
 var _xlColsOk = {};       /* tabelas cujas colunas já foram conferidas */
 var _xlFila = Promise.resolve();
 var XL_CHUNK = 30000;     /* limite do Excel é 32.767 caracteres por célula */
+/* O Excel pode demorar alguns segundos para mostrar, a quem lê de fora da sessão de gravação, o que acabou de ser gravado.
+   Para a tela não "voltar atrás" (item excluído que reaparece, status antigo), o portal lembra por alguns minutos o que ele
+   mesmo gravou ou apagou, e usa isso no lugar de uma leitura ainda desatualizada. */
+var XL_RECENTES_TTL = 180000;
+var _xlRecentes = {};     /* tabela -> { id: {t, apagado, row, sigDepois, anteriores[]} } */
+function xlLembrarGravacao(t, row, sigAntes, sigDepois){
+  var rec = (_xlRecentes[t] = _xlRecentes[t] || {}), prev = rec[row.id], ant = [];
+  if(prev && !prev.apagado){ ant = prev.anteriores.concat([prev.sigDepois]); }
+  if(sigAntes !== undefined && ant.indexOf(sigAntes) === -1) ant.push(sigAntes);
+  rec[row.id] = { t: Date.now(), apagado: false, row: JSON.parse(JSON.stringify(row)), sigDepois: sigDepois, anteriores: ant };
+}
+function xlLembrarExclusao(t, id){ (_xlRecentes[t] = _xlRecentes[t] || {})[id] = { t: Date.now(), apagado: true }; }
+/* ajusta o resultado de uma leitura com o que o portal acabou de gravar/apagar */
+function xlAplicarRecentes(t, out, reais){
+  var rec = _xlRecentes[t]; if(!rec) return;
+  var agora = Date.now();
+  Object.keys(rec).forEach(function(id){
+    var e = rec[id];
+    if(agora - e.t > XL_RECENTES_TTL){ delete rec[id]; return; }
+    var i = -1; for(var k = 0; k < out.length; k++){ if(out[k].id === id){ i = k; break; } }
+    if(e.apagado){
+      if(i === -1) delete rec[id];                 /* o Excel já refletiu a exclusão */
+      else out.splice(i, 1);                       /* leitura antiga: continua escondido */
+      return;
+    }
+    if(i === -1){ out.push(JSON.parse(JSON.stringify(e.row))); return; }    /* ainda não apareceu: usa o que gravamos */
+    var lida = reais[id];
+    if(lida === e.sigDepois) delete rec[id];                                /* o Excel já refletiu */
+    else if(e.anteriores.indexOf(lida) !== -1) out[i] = JSON.parse(JSON.stringify(e.row));   /* versão antiga: usa a nossa */
+    else delete rec[id];                                                    /* outra pessoa alterou depois: vale o Excel */
+  });
+}
 
 function msEncPath(p){ return p.split('/').map(encodeURIComponent).join('/'); }
 function msRedirectUri(){ return window.location.origin + window.location.pathname.replace(/index\.html$/, ''); }
@@ -960,7 +992,7 @@ async function msSilencioso(){
 }
 async function msSair(){
   _msToken = null; _wbItemId = null; _wbSessionId = null; _xlUser = null;
-  _xlBaseSig = {}; _xlCache = {}; _xlColsOk = {};
+  _xlBaseSig = {}; _xlCache = {}; _xlColsOk = {}; _xlRecentes = {};
   try{
     if(!_msal) return;
     var c = _msal.getAllAccounts()[0];
@@ -1123,15 +1155,18 @@ function xlFindIdx(t, raw, id){
 async function xlSelect(t, forcar){
   var c = _xlCache[t];
   if(!forcar && c && Date.now() - c.t < 3000) return JSON.parse(c.json);
-  var cfg = XLT[t], raw = await xlRaw(t), out = [], sigs = {};
+  var cfg = XLT[t], raw = await xlRaw(t), out = [], sigs = {}, reais = {};
   raw.forEach(function(arr){
     if(xlBlank(arr)) return;
     var cells = xlCellsDe(cfg, arr), row = cfg.shape(cells);
     if(!row.id) return;
-    sigs[row.id] = xlSig(t, row); out.push(row);
+    sigs[row.id] = xlSig(t, row); reais[row.id] = sigs[row.id]; out.push(row);
     /* processo que já tem código mas cujas colunas Codigo/Publico estão vazias ou diferentes: marca para regravar no próximo salvamento */
     if(t === 'processos' && row.dados.codigoAcompanhamento && (String(cells.Codigo || '') !== row.dados.codigoAcompanhamento || !cells.Publico)) sigs[row.id] = '__atualizar_colunas__';
   });
+  xlAplicarRecentes(t, out, reais);
+  Object.keys(sigs).forEach(function(id){ if(!out.some(function(r){ return r.id === id; })) delete sigs[id]; });
+  out.forEach(function(r){ if(sigs[r.id] === undefined) sigs[r.id] = xlSig(t, r); });
   _xlBaseSig[t] = sigs;
   _xlCache[t] = { t: Date.now(), json: JSON.stringify(out) };
   return out;
@@ -1178,6 +1213,7 @@ async function xlGravar(t, rows, naoAtualizaBase){
       if(idx < 0) idx = raw.findIndex(xlBlank);              /* reaproveita a linha vazia que o Excel exige */
       if(idx >= 0){ await msGraph('PATCH', xlRowsUrl(t) + '/itemAt(index=' + idx + ')', { values: [arr] }); raw[idx] = arr; }
       else { await msGraph('POST', xlRowsUrl(t) + '/add', { values: [arr] }); raw.push(arr); }
+      xlLembrarGravacao(t, row, (_xlBaseSig[t] || {})[row.id], sig);
       if(!naoAtualizaBase){ (_xlBaseSig[t] = _xlBaseSig[t] || {})[row.id] = sig; }
     }
   });
@@ -1197,6 +1233,7 @@ async function xlRemover(t, id){
     }
     removidos = 1;
   });
+  if(removidos) xlLembrarExclusao(t, id);
   if(_xlBaseSig[t]) delete _xlBaseSig[t][id];
   delete _xlCache[t];
   return removidos;
@@ -1205,13 +1242,15 @@ async function xlRemover(t, id){
 /* ---------- número da OS: maior número do ano entre processos e excluídos (+1) ---------- */
 async function xlProximaOS(){
   var ano = new Date().getFullYear(), max = 0;
+  function considera(os){ var m = /^OS-(\d+)\/(\d{4})$/.exec(String(os || '').trim()); if(m && parseInt(m[2], 10) === ano) max = Math.max(max, parseInt(m[1], 10)); }
   for(var t of ['processos', 'processos_excluidos']){
     var cfg = XLT[t], col = cfg.cols.indexOf('OS');
-    (await xlRaw(t)).forEach(function(arr){
-      var m = /^OS-(\d+)\/(\d{4})$/.exec(String(arr[col] || '').trim());
-      if(m && parseInt(m[2], 10) === ano) max = Math.max(max, parseInt(m[1], 10));
-    });
+    (await xlRaw(t)).forEach(function(arr){ considera(arr[col]); });
   }
+  /* OS gravadas há pouco, que a leitura ainda pode não mostrar, e as que a própria tela já conhece */
+  Object.keys(_xlRecentes.processos || {}).forEach(function(id){ var e = _xlRecentes.processos[id]; if(e.row && e.row.dados) considera(e.row.dados.ordemServico); });
+  (typeof state !== 'undefined' && state.processes || []).forEach(function(p){ considera(p.ordemServico); });
+  (typeof state !== 'undefined' && state.processosExcluidos || []).forEach(function(x){ considera(x.ordemServico); });
   return 'OS-' + String(max + 1).padStart(3, '0') + '/' + ano;
 }
 async function xlRegistrarAcesso(){
@@ -5322,7 +5361,7 @@ async function confirmarExcluirProcesso(id){
   state.processes = state.processes.filter(function(x){return x.id!==id;});
   saveState();
   closePanel();
-  go({name:'admin-processos'});
+  go({name:(p.status==='solicitado' || p.status==='recusado') ? 'admin-solicitacoes' : 'admin-processos'});
 
   if(ehTeste && p.ordemServico){
     var liberou = await liberarNumeroOS(p.ordemServico);
