@@ -899,10 +899,10 @@ function seedState(){
 }
 
 /* =========================================================
-   3) ESTADO / PERSISTÊNCIA — Supabase (banco de dados real,
-   compartilhado entre todos os usuários e dispositivos)
+   3) ESTADO / PERSISTÊNCIA — planilha Excel no SharePoint (compartilhada
+   entre todos os usuários e dispositivos)
    ========================================================= */
-var STORAGE_KEY = 'portalSocietarioDemoV1';
+
 var SEED_VERSION = 8; /* aumentar sempre que a estrutura inicial dos dados de exemplo mudar, para forçar o reset automático de dados salvos antigos no navegador */
 /* Identificador da versão publicada — mudar a cada novo deploy. Usado só para
    avisar quem já está com a tela aberta há um tempo que existe uma versão mais
@@ -913,8 +913,8 @@ var SEED_VERSION = 8; /* aumentar sempre que a estrutura inicial dos dados de ex
 var BUILD_ID = '20261001-xl1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
-   Substitui o Supabase. O resto do app continua chamando "supa.*"
-   como antes; este bloco traduz essas chamadas para tabelas do Excel
+   O app chama "planilha.*", com a mesma forma de uma API de banco de dados
+   (from, select, upsert, eq...); este bloco traduz essas chamadas para tabelas do Excel
    (Graph Workbook API) e arquivos do SharePoint. Login: conta Microsoft
    (MSAL) validada contra a tabela Usuarios.
    ========================================================= */
@@ -1202,8 +1202,8 @@ async function xlSelect(t, forcar){
   _xlCache[t] = { t: Date.now(), json: JSON.stringify(out) };
   return out;
 }
-/* RLS de antes, agora no cliente: o freelancer só enxerga os processos atribuídos a ele.
-   (Atenção: isto é só de tela; o isolamento real depende da permissão do arquivo no SharePoint.) */
+/* O freelancer só enxerga os processos atribuídos a ele. (Atenção: isto é só de tela; o isolamento
+   real depende da permissão do arquivo no SharePoint.) */
 function xlFiltrarPapel(t, rows){
   if(_xlUser && _xlUser.role === 'freelancer'){
     if(t === 'processos') return rows.filter(function(r){ return r.responsavel_id === _xlUser.id; });
@@ -1302,7 +1302,7 @@ async function xlCriarUsuario(body){
   return { data: { id: id, senha: '' }, error: null };
 }
 
-/* ---------- API compatível com o que o app já chamava em "supa.*" ---------- */
+/* ---------- API compatível com o que o app já chamava em "planilha.*" ---------- */
 function XQ(t){ this.t = t; this.op = 'select'; this.f = []; this.payload = null; this.sel = false; this.one = null; }
 XQ.prototype.select = function(){ if(this.op !== 'select') this.sel = true; return this; };
 XQ.prototype.upsert = function(r){ this.op = 'upsert'; this.payload = [].concat(r); return this; };
@@ -1348,19 +1348,13 @@ XQ.prototype._run = async function(){
     return { data: null, error: { message: e.message } };
   }
 };
-var supa = {
+var planilha = {
   from: function(t){ return new XQ(t); },
   rpc: async function(nome, args){
     try{
       if(nome === 'gerar_ordem_servico') return { data: await xlProximaOS(), error: null };
       if(nome === 'liberar_numero_os') return { data: null, error: null };       /* a OS é calculada pelo maior número existente: ao apagar, o número volta sozinho */
-      if(nome === 'marcar_senha_alterada') return { data: null, error: null };
       if(nome === 'registrar_ultimo_acesso'){ await xlRegistrarAcesso(); return { data: null, error: null }; }
-      if(nome === 'buscar_processo_por_os'){
-        var rows = await xlSelect('processos', false);
-        var achou = rows.filter(function(r){ return xlNorm(r.dados.ordemServico) === xlNorm(args.os_numero); });
-        return { data: achou, error: null };
-      }
     }catch(e){ console.error('[planilha] rpc ' + nome + ':', e); return { data: null, error: { message: e.message } }; }
     return { data: null, error: { message: 'Função indisponível nesta versão: ' + nome } };
   },
@@ -1370,7 +1364,7 @@ var supa = {
     }catch(e){ console.error('[planilha] criar-usuario:', e); return { data: null, error: { message: e.message } }; }
     return { data: null, error: { message: 'Função indisponível: ' + nome } };
   } },
-  storage: { from: function(){ return {
+  arquivos: {
     upload: async function(path, file){
       try{
         if(file.size > UP_SIMPLES_MAX){ await msUploadGrande(SP.docsFolder + '/' + path, file); return { data: { path: path }, error: null }; }
@@ -1395,17 +1389,9 @@ var supa = {
         return url ? { data: { signedUrl: url }, error: null } : { data: null, error: { message: 'Arquivo sem link de download.' } };
       }catch(e){ console.error('[sharepoint] download:', e); return { data: null, error: { message: e.message } }; }
     }
-  }; } },
-  auth: {   /* login por senha deixou de existir: o acesso é pela conta Microsoft */
-    signOut: function(){ return Promise.resolve({}); },
-    getSession: function(){ return Promise.resolve({ data: { session: null } }); },
-    signInWithPassword: function(){ return Promise.resolve({ error: { message: 'Login por senha desativado: use a conta Microsoft.' } }); },
-    signInWithOtp: function(){ return Promise.resolve({ error: { message: 'Indisponível: use a conta Microsoft.' } }); },
-    updateUser: function(){ return Promise.resolve({ error: { message: 'Indisponível: use a conta Microsoft.' } }); }
   }
 };
 
-var STORAGE_BUCKET = 'documentos';
 function sanitizeFileName(nome){
   return String(nome||'arquivo').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9.\-_]+/g,'_').slice(0,140);
 }
@@ -1433,12 +1419,12 @@ async function uploadArquivoReal(file, processoId, subpasta){
   var path = processoId+'/'+subpasta+'/'+Date.now()+'-'+sanitizeFileName(file.name);
   if(file.size > UP_MAX_BYTES){ var eg = new Error('O arquivo tem mais de 100 MB. Reduza o tamanho e tente de novo.'); eg.amigavel = true; throw eg; }
   if(file.size > UP_SIMPLES_MAX){      /* arquivo grande: envio em partes, que já tem novas tentativas próprias */
-    var upG = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
+    var upG = await planilha.arquivos.upload(path, file, {upsert:false});
     if(upG.error) throw upG.error;
     return {nome:file.name, path:path};
   }
   return await comRetentativa(async function(){
-    var up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
+    var up = await planilha.arquivos.upload(path, file, {upsert:false});
     if(up.error) throw up.error;
     return {nome:file.name, path:path};
   });
@@ -1446,7 +1432,7 @@ async function uploadArquivoReal(file, processoId, subpasta){
 async function baixarArquivoReal(path){
   if(!path){ toast('Arquivo não disponível para download.'); return; }
   try{
-    var res = await supa.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600);
+    var res = await planilha.arquivos.createSignedUrl(path, 3600);
     if(res.error || !res.data){ toast(res.error && /404/.test(res.error.message || '') ? 'Arquivo não encontrado na pasta. Se veio do cliente, o envio pode não ter terminado: peça para ele reenviar.' : 'Não foi possível gerar o link de download.'); return; }
     window.open(res.data.signedUrl, '_blank');
   }catch(e){
@@ -1474,26 +1460,13 @@ function mudarMesConcluidos(delta){
   render();
 }
 
-function loadState(){
-  try{
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      var parsed = JSON.parse(raw);
-      if(parsed && parsed.seedVersion === SEED_VERSION) return parsed;
-    }
-  }catch(e){}
-  return seedState();
-}
 function saveState(){
-  sincronizarSupabase();
-}
-function resetDemo(){
-  toast('Esta opção não está mais disponível — os dados agora são reais e compartilhados.');
+  sincronizarPlanilha();
 }
 
 /* ---- conversão entre o formato usado no app (state.users/companies/processes)
-   e as linhas das tabelas do Supabase (colunas indexadas + dados completos em JSONB,
-   para não perder nenhum campo aninhado do protótipo original) ---- */
+   e as linhas das tabelas da planilha (colunas de apoio + dados completos em JSON,
+   para não perder nenhum campo aninhado) ---- */
 function usuarioParaRow(u){
   var dados = Object.assign({}, u);
   delete dados.senha;
@@ -1514,39 +1487,38 @@ function rowParaProcesso(row){ var p = Object.assign({}, row.dados); p.id = row.
 function excluidoParaRow(x){ return {id:x.id, dados:x}; }
 function rowParaExcluido(row){ var x = Object.assign({}, row.dados); x.id = row.id; return x; }
 
-/* ---- envia para o Supabase tudo que está em memória; cada tabela é protegida
-   por regras de segurança (RLS) próprias, então um erro de permissão em uma
-   tabela (esperado para papéis sem acesso a ela) nunca interrompe as outras ---- */
-function sincronizarSupabase(){
+/* ---- envia para a planilha o que mudou em memória; um erro em uma tabela (por
+   exemplo, falta de permissão) nunca interrompe as outras ---- */
+function sincronizarPlanilha(){
   if(!_xlUser) return;      /* só a equipe logada grava na planilha */
   var u = currentUser();
   if(state.processes && state.processes.length){
-    supa.from('processos').upsert(state.processes.map(processoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar processos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+    planilha.from('processos').upsert(state.processes.map(processoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar processos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
   }
   if(u && (u.role==='admin' || u.role==='colaborador')){
     if(state.processosExcluidos && state.processosExcluidos.length){
-      supa.from('processos_excluidos').upsert(state.processosExcluidos.map(excluidoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar excluídos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+      planilha.from('processos_excluidos').upsert(state.processosExcluidos.map(excluidoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar excluídos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
     }
     if(state.companies && state.companies.length){
-      supa.from('empresas').upsert(state.companies.map(empresaParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar empresas:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+      planilha.from('empresas').upsert(state.companies.map(empresaParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar empresas:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
     }
   }
   if(u && u.role==='admin' && state.users && state.users.length){
-    supa.from('usuarios').upsert(state.users.map(usuarioParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar usuários:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+    planilha.from('usuarios').upsert(state.users.map(usuarioParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar usuários:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
   }
 }
 
-/* ---- carrega, a partir do Supabase, tudo que o usuário autenticado tem
-   permissão de ver (o próprio banco já filtra por papel via RLS) ---- */
+/* ---- carrega da planilha tudo que o usuário autenticado pode ver (a camada de
+   dados já filtra por papel) ---- */
 async function carregarDadosAutenticados(authUserId){
-  var perfilResp = await supa.from('usuarios').select('*').eq('id', authUserId).single();
+  var perfilResp = await planilha.from('usuarios').select('*').eq('id', authUserId).single();
   if(perfilResp.error || !perfilResp.data) return false;
   var uPerfil = rowParaUsuario(perfilResp.data);
   var resultados = await Promise.all([
-    supa.from('usuarios').select('*'),
-    supa.from('empresas').select('*'),
-    supa.from('processos').select('*'),
-    supa.from('processos_excluidos').select('*')
+    planilha.from('usuarios').select('*'),
+    planilha.from('empresas').select('*'),
+    planilha.from('processos').select('*'),
+    planilha.from('processos_excluidos').select('*')
   ]);
   var erroCarga = resultados.filter(function(r){ return r.error; })[0];
   if(erroCarga) throw new Error(erroCarga.error.message);
@@ -1581,20 +1553,10 @@ function algumCampoEmEdicao(){
 async function atualizarDadosDoServidorSilenciosamente(){
   try{
     if(state.session){
-      var res = await supa.from('processos').select('*');
+      var res = await planilha.from('processos').select('*');
       if(!res.error && res.data){
         state.processes = res.data.map(rowParaProcesso);
         if(!algumCampoEmEdicao()) render();
-      }
-    } else if(state.view && state.view.name==='link-publico' && state.view.etapa==='processo' && state.view.id){
-      var atualLocal = (state.processes||[]).filter(function(x){ return x.id===state.view.id; })[0];
-      if(atualLocal && atualLocal.ordemServico){
-        var r = await supa.rpc('buscar_processo_por_os', {os_numero: atualLocal.ordemServico});
-        if(!r.error && r.data && r.data.length){
-          var fresco = rowParaProcesso(r.data[0]);
-          state.processes = (state.processes||[]).map(function(x){ return x.id===fresco.id ? fresco : x; });
-          if(!algumCampoEmEdicao()) render();
-        }
       }
     }
   }catch(e){
@@ -1717,13 +1679,10 @@ function maskDigitos(el, max){
   el.value = (el.value||'').replace(/\D/g,'').slice(0, max||20);
 }
 async function gerarOrdemServico(){
-  /* número gerado de forma atômica no banco (sequence do Postgres), para que
-     dois pedidos simultâneos — inclusive de visitantes sem login, que não têm
-     como saber os números já usados por outras pessoas — nunca recebam o
-     mesmo número de ordem de serviço. */
+  /* o número é o maior da planilha no ano, mais 1 (ver xlProximaOS) */
   try{
     var data = await comRetentativa(async function(){
-      var res = await supa.rpc('gerar_ordem_servico');
+      var res = await planilha.rpc('gerar_ordem_servico');
       if(res.error) throw res.error;
       if(!res.data) throw new Error('RPC gerar_ordem_servico sem retorno');
       return res.data;
@@ -1737,19 +1696,7 @@ async function gerarOrdemServico(){
   var ano = new Date().getFullYear();
   return 'OS-'+String(n).padStart(3,'0')+'/'+ano;
 }
-function normalizarOS(str){
-  var s = (str||'').trim().toUpperCase().replace(/\s+/g,'');
-  if(s.indexOf('OS-')!==0) s = 'OS-'+s;
-  var m = s.match(/^OS-(\d+)\/(\d{4})$/);
-  if(m) return 'OS-'+m[1].padStart(3,'0')+'/'+m[2];
-  return s;
-}
-function gerarSenhaProvisoria(){
-  return String(Math.floor(100000 + Math.random()*900000));
-}
-function gerarCodigoVerificacao(){
-  return String(Math.floor(100000 + Math.random()*900000));
-}
+
 function nomeParaProcesso(p){
   var c = getCompany(p.empresaId);
   if(c) return c.nome;
@@ -1762,65 +1709,13 @@ function docParaProcesso(p){
   if(p.visitante) return (p.visitante.telefone || p.visitante.email || '—');
   return '—';
 }
-function emailConfirmacaoTemplate(ordemServico){
-  var assunto = 'Solicitação societária recebida | '+ordemServico;
-  var corpoHtml = ''+
-    '<p>Olá!</p>'+
-    '<p>Sua solicitação de serviço societário foi <strong>enviada com sucesso</strong> e já está registrada em nosso sistema.</p>'+
-    '<p><strong>Número da Ordem de Serviço: '+esc(ordemServico)+'</strong></p>'+
-    '<p>Guarde esse número, pois ele será utilizado para <strong>acompanhar o andamento do seu processo</strong>.</p>'+
-    '<p>Agradecemos pela confiança e seguimos acompanhando seu processo!</p>';
-  return {assunto:assunto, corpoHtml:corpoHtml};
-}
+
 async function salvarProcessoNoServidor(processo, ehNovo){
-  /* ehNovo=true: criação de processo (finalizarNovoProcesso) — sempre grava
-     direto na tabela por id, inclusive para visitante sem login (a política de
-     RLS libera INSERT anônimo quando empresa_id é nulo).
-     ehNovo falso/omitido: atualização de um processo JÁ existente. Se não há
-     sessão autenticada (visitante do link público), a gravação direta por id
-     seria bloqueada pela RLS (não existe política de UPDATE para o papel
-     anônimo) — nesse caso usamos a RPC atualizar_processo_por_os, que localiza
-     o processo exatamente pelo número da OS (a própria credencial pública).
-     Em ambos os casos, checamos se alguma linha voltou no resultado: um
-     upsert/RPC que a RLS filtra silenciosamente "funciona" sem erro, mas não
-     grava nada — por isso 0 linhas retornadas também conta como falha. */
+  /* Grava (ou atualiza) um processo na planilha. ehNovo=true é a criação; sem ele é a atualização de um
+     processo que já existe. Só a equipe logada chega aqui: o cliente sem conta envia o pedido pelo fluxo
+     "Criar" do Power Automate (ver enviarSolicitacaoPublica). Uma gravação que não devolve linha nenhuma
+     também conta como falha. */
   try{
-    if(!ehNovo && !state.session){
-      if(!processo.ordemServico) throw new Error('Processo sem número de ordem de serviço.');
-      await comRetentativa(async function(){
-        var res = await supa.rpc('atualizar_processo_por_os', {os_numero: processo.ordemServico, novo_dados: processo});
-        if(res.error) throw res.error;
-        if(!res.data || !res.data.length) throw new Error('Nenhum processo atualizado (RPC atualizar_processo_por_os retornou vazio).');
-      });
-      return true;
-    }
-    if(ehNovo && !state.session){
-      /* criação de processo por visitante sem login (formulário público, ex.:
-         abertura de CNPJ vindo do link do WhatsApp): a política de RLS libera
-         a inserção anônima (com check: empresa_id nulo), mas NÃO existe
-         política de SELECT para o papel anônimo nessa tabela — de propósito,
-         para que um visitante não consiga ler processos de outras pessoas.
-         Por isso usamos .insert() (nunca .upsert()) aqui: o método upsert()
-         do supabase-js pede ao PostgREST para devolver a linha gravada
-         (Prefer: return=representation) MESMO sem .select() encadeado, pois
-         upsert precisa dessa resposta para reportar se cada linha foi
-         inserida ou atualizada. E devolver a linha gravada, com RLS
-         ativado, exige que o Postgres também confira a política de SELECT
-         sobre essa linha — que não existe para o anônimo — então o comando
-         inteiro falha com "new row violates row-level security policy",
-         mesmo o INSERT em si sendo permitido pela política correta. Isso foi
-         confirmado testando diretamente: o mesmo upsert, chamado sem
-         .select(), ainda falhava; trocando só o método para .insert() (sem
-         upsert, sem pedir representação da linha), a gravação funcionou.
-         Como este caminho é exclusivamente para processos NOVOS (ehNovo),
-         não existe necessidade de semântica de upsert/conflito aqui mesmo —
-         .insert() é também o método semanticamente correto. */
-      await comRetentativa(async function(){
-        var res = await supa.from('processos').insert([processoParaRow(processo)]);
-        if(res.error) throw res.error;
-      });
-      return true;
-    }
     if(!ehNovo){
       /* Evita perder atualizações concorrentes: como cada gravação envia o objeto
          `dados` inteiro (upsert substitui tudo), duas gravações quase simultâneas
@@ -1833,17 +1728,12 @@ async function salvarProcessoNoServidor(processo, ehNovo){
          antes de gravar, buscamos o histórico mais recente do servidor e mesclamos
          com o histórico local, mantendo qualquer entrada nova de ambos os lados. */
       try{
-        var atual = await supa.from('processos').select('dados').eq('id', processo.id).maybeSingle();
+        var atual = await planilha.from('processos').select('dados').eq('id', processo.id).maybeSingle();
         if(!atual.error && atual.data && atual.data.dados && Array.isArray(atual.data.dados.historico)){
           var histServidor = atual.data.dados.historico;
           var histLocal = Array.isArray(processo.historico) ? processo.historico : [];
-          /* IMPORTANTE: a chave de comparação NÃO pode ser JSON.stringify(h) —
-             o Postgres reordena as chaves de um objeto ao gravar em jsonb, então
-             a MESMA entrada, depois de ida e volta ao servidor, produz um
-             JSON.stringify diferente do objeto local (só a ordem das chaves
-             muda). Isso fazia esse filtro nunca reconhecer uma entrada do
-             servidor como igual à local, duplicando o histórico inteiro a cada
-             gravação. Por isso montamos a chave manualmente, em ordem fixa. */
+          /* a chave de comparação é montada em ordem fixa, e não com JSON.stringify: a ordem das chaves de um
+             objeto pode mudar numa ida e volta pela planilha, e isso duplicaria o histórico a cada gravação. */
           var chaveEntrada = function(h){ return (h.data||'')+'|'+(h.hora||'')+'|'+(h.texto||'')+'|'+(h.autor||'')+'|'+(h.tipo||''); };
           var chavesServidor = {};
           histServidor.forEach(function(h){ chavesServidor[chaveEntrada(h)] = true; });
@@ -1855,7 +1745,7 @@ async function salvarProcessoNoServidor(processo, ehNovo){
       }
     }
     await comRetentativa(async function(){
-      var res = await supa.from('processos').upsert([processoParaRow(processo)]).select();
+      var res = await planilha.from('processos').upsert([processoParaRow(processo)]).select();
       if(res.error) throw res.error;
       if(!res.data || !res.data.length) throw new Error('Nenhum processo salvo (0 linhas afetadas — verifique permissões).');
     });
@@ -1867,7 +1757,7 @@ async function salvarProcessoNoServidor(processo, ehNovo){
     }
     return true;
   }catch(e){
-    console.error('Erro ao salvar processo no Supabase:', e);
+    console.error('Erro ao salvar processo na planilha:', e);
     return false;
   }
 }
@@ -1892,7 +1782,7 @@ async function finalizarNovoProcesso(processo, toastLogado){
   }
 
   /* salva de verdade no servidor ANTES de mostrar qualquer tela de sucesso —
-     se a gravação falhar (sem internet, erro do Supabase, etc.), o cliente
+     se a gravação falhar (sem internet, erro da planilha, etc.), o cliente
      precisa ver isso e poder tentar de novo, em vez de receber uma
      confirmação falsa enquanto nada foi realmente registrado. */
   var salvoComSucesso = await salvarProcessoNoServidor(processo, true);
@@ -1952,10 +1842,7 @@ function effectiveCompanyForPricing(){
   if(state.visitanteTipo) return {tipo: state.visitanteTipo, nome: (state.visitante && state.visitante.nome) || ''};
   return null;
 }
-function companyProcesses(companyId){
-  return state.processes.filter(function(p){ return p.empresaId===companyId; })
-    .sort(compararOrdemSolicitacao);
-}
+
 function statusLabel(s){
   return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito'}[s] || s || 'Status desconhecido';
 }
@@ -2092,7 +1979,7 @@ function seal(size, color){
    ========================================================= */
 function go(view){
   state.view = view; saveState(); render(); window.scrollTo(0,0);
-  var telasQueMerecemDadosFrescos = {'admin-solicitacoes':1,'admin-processos':1,'admin-processo-detalhe':1,'cliente-processos':1,'cliente-processo-detalhe':1,'admin-overview':1};
+  var telasQueMerecemDadosFrescos = {'admin-solicitacoes':1,'admin-processos':1,'admin-processo-detalhe':1,'admin-overview':1};
   if(view && (telasQueMerecemDadosFrescos[view.name] || (view.name==='link-publico' && view.etapa==='processo'))){
     atualizarDadosDoServidorSilenciosamente();
   }
@@ -2107,16 +1994,8 @@ async function login(userId){
     return;
   }
   var u = currentUser();
-  supa.rpc('registrar_ultimo_acesso').then(function(r){ if(r.error) console.warn('Registrar último acesso:', r.error.message); });
-  var pendente = null;
-  try{ pendente = localStorage.getItem(TROCAR_SENHA_PENDENTE_KEY); }catch(e){}
-  if(pendente===u.id){
-    state.view = {name:'trocar-senha-obrigatoria', userId:u.id, etapa:'definir-senha'};
-  } else if(u.senhaProvisoria){
-    state.view = {name:'trocar-senha-obrigatoria', userId:u.id, etapa:'enviar-link'};
-  } else {
-    state.view = {name: u.role==='freelancer' ? 'admin-processos' : ((u.role==='admin' || u.role==='colaborador') ? 'admin-overview' : 'cliente-processos')};
-  }
+  planilha.rpc('registrar_ultimo_acesso').then(function(r){ if(r.error) console.warn('Registrar último acesso:', r.error.message); });
+  state.view = {name: u.role==='freelancer' ? 'admin-processos' : 'admin-overview'};
   render();
 }
 function logout(){
@@ -2129,6 +2008,7 @@ function logout(){
 }
 async function boot(){
   iniciarAvisoAnexos();
+  try{ localStorage.removeItem('portalSocietarioDemoV1'); localStorage.removeItem('psTrocarSenhaPendenteUserId'); }catch(e){}   /* restos de versões antigas */
   if(state.view.name!=='carregando'){ render(); return; }
   try{
     var m = await msEnsure();
@@ -2187,7 +2067,6 @@ function render(){
   if(state.view && state.view.name==='carregando'){ app.innerHTML = renderCarregando(); return; }
   if(state.view && state.view.name==='link-publico'){ app.innerHTML = renderLinkPublico(); return; }
   if(state.view && state.view.name==='sem-acesso'){ app.innerHTML = renderSemAcesso(); return; }
-  if(state.view && state.view.name==='trocar-senha-obrigatoria'){ app.innerHTML = renderTrocarSenhaObrigatoria(); return; }
   if(!state.session){ app.innerHTML = renderLogin(); return; }
   var u = currentUser();
   if(!u){ logout(); return; }
@@ -2250,7 +2129,7 @@ async function entrarComContaMicrosoft(){
   if(motivo){ semAcessoMsg = motivo; state.session = null; state.view = {name:'sem-acesso'}; render(); return; }
   _xlUser = {id: achado.id, role: achado.role};
   await login(achado.id);
-  sincronizarSupabase();      /* regrava só o que está desatualizado (ex.: colunas Codigo/Publico de processos antigos) */
+  sincronizarPlanilha();      /* regrava só o que está desatualizado (ex.: colunas Codigo/Publico de processos antigos) */
 }
 async function entrarFuncionario(){
   homeMsg = '';
@@ -2265,132 +2144,7 @@ async function entrarFuncionario(){
   }
 }
 
-async function submeterLogin(){
-  var emailInput = document.getElementById('login-email');
-  var senhaInput = document.getElementById('login-senha');
-  var email = emailInput ? emailInput.value.trim().toLowerCase() : '';
-  var senha = senhaInput ? senhaInput.value : '';
-  var errBox = document.getElementById('login-erro');
-  function mostrarErro(msg){
-    if(errBox){ errBox.textContent = msg; errBox.style.display='block'; }
-  }
-  if(!email || !senha){ mostrarErro('Preencha e-mail e senha para entrar.'); return; }
-  var btn = document.querySelector('.login-form-side .btn-teal');
-  if(btn){ btn.disabled = true; btn.textContent = 'Entrando…'; }
-  var authResp = await supa.auth.signInWithPassword({email:email, password:senha});
-  if(authResp.error){
-    if(btn){ btn.disabled = false; btn.textContent = 'Entrar no painel'; }
-    mostrarErro('E-mail ou senha inválidos.');
-    return;
-  }
-  await login(authResp.data.user.id);
-}
-
-function openEsqueciSenha(){
-  var html = ''+
-  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
-    '<div class="modal-box">'+
-      '<div class="panel-head"><h3 style="font-size:1.05rem;">Esqueci minha senha</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
-      '<div class="panel-body"><p style="color:var(--ink-soft); font-size:.92rem; line-height:1.6;">Por segurança, a redefinição de senha é feita pela equipe da Lucralize. Entre em contato com o suporte para receber uma nova senha de acesso.</p></div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-teal" onclick="PS.closePanel()">Entendi</button></div>'+
-    '</div>'+
-  '</div>';
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
 /* ---------- TROCA DE SENHA OBRIGATÓRIA (primeiro acesso com senha provisória) ---------- */
-var TROCAR_SENHA_PENDENTE_KEY = 'psTrocarSenhaPendenteUserId';
-function renderTrocarSenhaObrigatoria(){
-  var u = getUser(state.view.userId);
-  if(!u){ state.view = {name:'login'}; return renderLogin(); }
-  var etapa = state.view.etapa || 'enviar-link';
-
-  var corpoHtml;
-  if(etapa==='enviar-link'){
-    corpoHtml = ''+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Este é o seu primeiro acesso. Por segurança, vamos confirmar seu e-mail antes de você definir a sua senha definitiva.</p>'+
-      '<div id="trocar-senha-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-      '<button class="btn btn-teal btn-block" onclick="PS.trocarSenhaEnviarLink()">Enviar link de confirmação por e-mail</button>'+
-      '<button type="button" class="link-esqueci" onclick="PS.trocarSenhaVoltarLogin()">← Voltar para o login</button>';
-  } else if(etapa==='aguardando-link'){
-    corpoHtml = ''+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Enviamos um link de confirmação para <strong style="color:var(--ink);">'+esc(u.email)+'</strong>. Abra seu e-mail (confira também o spam) e clique no link — esta página continua sozinha assim que você confirmar.</p>'+
-      '<div id="trocar-senha-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-      '<button type="button" class="link-esqueci" onclick="PS.trocarSenhaReenviarLink()">Reenviar link</button>'+
-      '<button type="button" class="link-esqueci" onclick="PS.trocarSenhaVoltarLogin()">← Voltar para o login</button>';
-  } else {
-    corpoHtml = ''+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">E-mail confirmado! Agora defina sua senha definitiva de acesso.</p>'+
-      '<div id="trocar-senha-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-      '<div class="field"><label>Nova senha</label><input id="trocar-senha-nova" type="password" placeholder="Mínimo de 6 caracteres" onkeydown="if(event.key===\'Enter\') PS.trocarSenhaDefinirSenha()"></div>'+
-      '<div class="field"><label>Confirmar nova senha</label><input id="trocar-senha-confirma" type="password" placeholder="Repita a nova senha" onkeydown="if(event.key===\'Enter\') PS.trocarSenhaDefinirSenha()"></div>'+
-      '<button class="btn btn-teal btn-block" onclick="PS.trocarSenhaDefinirSenha()">Salvar senha e entrar</button>';
-  }
-
-  return ''+
-  '<div class="login-wrap">'+
-    '<div class="login-grid">'+
-      '<div class="login-pitch">'+
-        '<img class="brand-logo" src="'+LOGO_DATA_URI+'" alt="Lucralize">'+
-        '<h1>Societário — fique por dentro de tudo</h1>'+
-        '<p>Acompanhe o andamento da abertura, alteração ou baixa da sua empresa de forma simples e transparente.</p>'+
-      '</div>'+
-      '<div class="login-form-side">'+
-        '<div><h2 style="font-size:1.5rem;">Trocar senha provisória</h2></div>'+
-        corpoHtml+
-      '</div>'+
-    '</div>'+
-  '</div>';
-}
-function trocarSenhaEnviarLink(){
-  var u = getUser(state.view.userId);
-  if(!u){ state.view = {name:'login'}; render(); return; }
-  var errBox = document.getElementById('trocar-senha-erro');
-  function mostrarErro(msg){ if(errBox){ errBox.textContent = msg; errBox.style.display='block'; } }
-  var btn = document.querySelector('.login-form-side .btn-teal');
-  if(btn){ btn.disabled = true; }
-  var redirectUrl = window.location.origin + window.location.pathname;
-  supa.auth.signInWithOtp({email:u.email, options:{emailRedirectTo: redirectUrl}}).then(function(resp){
-    if(btn){ btn.disabled = false; }
-    if(resp.error){ mostrarErro('Não foi possível enviar o e-mail de confirmação. Tente novamente em instantes.'); return; }
-    try{ localStorage.setItem(TROCAR_SENHA_PENDENTE_KEY, u.id); }catch(e){}
-    state.view.etapa = 'aguardando-link';
-    render();
-    toast('Link de confirmação enviado para o seu e-mail.');
-  });
-}
-function trocarSenhaReenviarLink(){
-  trocarSenhaEnviarLink();
-}
-async function trocarSenhaDefinirSenha(){
-  var novaInput = document.getElementById('trocar-senha-nova');
-  var confirmaInput = document.getElementById('trocar-senha-confirma');
-  var errBox = document.getElementById('trocar-senha-erro');
-  var nova = novaInput ? novaInput.value : '';
-  var confirma = confirmaInput ? confirmaInput.value : '';
-  function mostrarErro(msg){ if(errBox){ errBox.textContent = msg; errBox.style.display='block'; } }
-  if(!nova || nova.length<6){ mostrarErro('A nova senha precisa ter pelo menos 6 caracteres.'); return; }
-  if(nova!==confirma){ mostrarErro('As senhas não coincidem.'); return; }
-  var btn = document.querySelector('.login-form-side .btn-teal');
-  if(btn){ btn.disabled = true; }
-  var updResp = await supa.auth.updateUser({password: nova});
-  if(updResp.error){
-    if(btn){ btn.disabled = false; }
-    mostrarErro('Não foi possível salvar a nova senha. Tente novamente.');
-    return;
-  }
-  await supa.rpc('marcar_senha_alterada');
-  try{ localStorage.removeItem(TROCAR_SENHA_PENDENTE_KEY); }catch(e){}
-  toast('Senha alterada com sucesso. Bem-vindo(a)!');
-  await login(updResp.data.user.id);
-}
-function trocarSenhaVoltarLogin(){
-  try{ localStorage.removeItem(TROCAR_SENHA_PENDENTE_KEY); }catch(e){}
-  supa.auth.signOut();
-  state.session = null;
-  state.view = {name:'login'};
-  render();
-}
 
 /* =========================================================
    LINK PÚBLICO — acesso sem login (visitante)
@@ -2425,7 +2179,7 @@ function linkPublicoShellWide(innerHtml, opts){
     '</div>'+
   '</div>';
 }
-function goLinkPublico(){ go({name:'link-publico', etapa:'divisao'}); }
+
 function linkPublicoSair(){
   state.visitante = null; state.visitanteTipo = null; state.visitanteFluxo = null;
   homeCliente = false; clienteTela = 'menu'; consultaResultado = null;
@@ -2508,10 +2262,7 @@ function renderShell(u){
     items.push({k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'});
     if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
   } else {
-    items = [
-      {k:'cliente-processos', ic:'≣', label:'Meus processos'},
-      {k:'cliente-catalogo', ic:'▤', label:'Solicitar serviço'}
-    ];
+    items = [];
   }
   /* trava de segurança: se o estado de navegação salvo apontar para uma tela
      que este papel não deveria acessar, redireciona para a tela permitida */
@@ -2530,8 +2281,8 @@ function renderShell(u){
   var company = admin ? null : getCompany(u.empresaId);
   var pageTitle = {
     'admin-overview':'Visão geral', 'admin-processos':'Todos os processos', 'admin-catalogo':'Catálogo de serviços',
-    'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS', 'cliente-processos':'Meus processos', 'cliente-catalogo':'Solicitar serviço',
-    'cliente-processo-detalhe':'Detalhe do processo', 'admin-processo-detalhe':'Detalhe do processo'
+    'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS',
+    'admin-processo-detalhe':'Detalhe do processo'
   }[state.view.name] || '';
   var crumb = admin ? 'Painel Lucralize' : (company ? company.nome : '');
 
@@ -2543,9 +2294,6 @@ function renderShell(u){
   else if(state.view.name==='admin-excluidos') body = renderAdminExcluidos();
   else if(state.view.name==='admin-solicitacoes') body = renderAdminSolicitacoes();
   else if(state.view.name==='admin-processo-detalhe') body = renderProcessoDetalhe(state.view.id, true, false);
-  else if(state.view.name==='cliente-processos') body = renderClienteProcessos(u);
-  else if(state.view.name==='cliente-catalogo') body = renderCatalogo(company, false);
-  else if(state.view.name==='cliente-processo-detalhe') body = renderProcessoDetalhe(state.view.id, false, false);
   else body = '<div class="empty-state">Tela não encontrada.</div>';
 
   return ''+
@@ -2578,25 +2326,6 @@ function renderShell(u){
 }
 
 /* ---------- CLIENTE: meus processos ---------- */
-function renderClienteProcessos(u){
-  var list = companyProcesses(u.empresaId);
-  var rows = list.map(function(p){
-    var svc = SERVICE_MAP[p.servicoId] || {nome:'Serviço não identificado', etapas:[]};
-    var pct = p.status==='concluido' ? 100 : p.status==='aguardando_pagamento' ? 0 : Math.round(((p.etapaAtual)/(etapasDoProcesso(p).length||1))*100);
-    return '<tr class="clickable" onclick="PS.go({name:\'cliente-processo-detalhe\', id:\''+p.id+'\'})">'+
-      '<td><strong>'+esc(svc.nome)+'</strong><div style="font-size:.74rem; color:var(--ink-faint);">Aberto em '+fmtDate(p.criadoEm)+'</div></td>'+
-      '<td><span class="pill status-'+p.status+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span></td>'+
-      '<td class="mono">'+pct+'%</td>'+
-      '<td style="text-align:right;"><span class="btn btn-ghost btn-sm">Ver detalhes →</span></td>'+
-    '</tr>';
-  }).join('');
-  return ''+
-  
-  '<div class="section-title"><h3>Processos da '+esc(getCompany(u.empresaId).nome)+'</h3>'+
-    '<button class="btn btn-accent btn-sm" onclick="PS.go({name:\'cliente-catalogo\'})">+ Solicitar novo serviço</button></div>'+
-  (list.length ? '<div class="card u-scroll-x"><table><thead><tr><th>Serviço</th><th>Status</th><th>Progresso</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-    : '<div class="card empty-state"><div style="font-size:1.6rem;">📄</div><strong>Nenhum processo ainda</strong><span>Solicite um serviço para começar a acompanhar por aqui.</span><button class="btn btn-primary btn-sm" style="margin-top:.4rem;" onclick="PS.go({name:\'cliente-catalogo\'})">Ver catálogo de serviços</button></div>');
-}
 
 /* ---------- CATÁLOGO (cliente ou admin, admin=readonly) ---------- */
 function renderCatalogo(company, adminMode, excludeCategorias){
@@ -5333,20 +5062,20 @@ function abrirModalExcluirProcesso(id){
 async function excluirProcessoNoServidor(id){
   try{
     await comRetentativa(async function(){
-      var res = await supa.from('processos').delete().eq('id', id).select();
+      var res = await planilha.from('processos').delete().eq('id', id).select();
       if(res.error) throw res.error;
       if(!res.data || !res.data.length) throw new Error('Nenhum processo excluído (0 linhas afetadas — verifique permissões).');
     });
     return true;
   }catch(e){
-    console.error('Erro ao excluir processo no Supabase:', e);
+    console.error('Erro ao excluir processo na planilha:', e);
     return false;
   }
 }
 async function liberarNumeroOS(osNumero){
   try{
     await comRetentativa(async function(){
-      var res = await supa.rpc('liberar_numero_os', {os_numero: osNumero});
+      var res = await planilha.rpc('liberar_numero_os', {os_numero: osNumero});
       if(res.error) throw res.error;
     });
     return true;
@@ -5499,13 +5228,10 @@ async function confirmarIncluirProcessoManual(){
     var divisaoNova = document.getElementById('manual-empresa-divisao').value;
     empresaId = 'c'+Date.now();
     var empresaNovaManual = {id:empresaId, nome:nome, cnpj:cnpj||'—', tipo:tipo, divisao:divisaoNova};
-    /* A empresa precisa existir de verdade no Supabase ANTES do processo: o
-       processo grava empresa_id como referência a essa empresa, e sem esta
-       gravação a empresa só existia na memória local do navegador — ao
-       recarregar a página ela sumia, e o processo (com uma empresa_id que não
-       existe de verdade no banco) falhava ao salvar com erro de violação de
-       chave estrangeira (409). */
-    var insEmpresaManual = await supa.from('empresas').insert(empresaParaRow(empresaNovaManual));
+    /* A empresa precisa estar gravada na planilha ANTES do processo: o processo guarda
+       empresa_id como referência a ela, e sem essa gravação ela só existiria na
+       memória do navegador e sumiria ao recarregar a página. */
+    var insEmpresaManual = await planilha.from('empresas').insert(empresaParaRow(empresaNovaManual));
     if(insEmpresaManual.error){
       if(errBox){ errBox.textContent='Não foi possível criar a empresa: '+insEmpresaManual.error.message; errBox.style.display='block'; }
       return;
@@ -5635,8 +5361,7 @@ function abrirEditarUsuario(id){
         '</div>'+
         '<div class="form-grid">'+
           '<div class="field full"><label>Nome completo <span class="req-mark">*</span></label><input id="eu-nome" type="text" value="'+esc(u.nome||'')+'"></div>'+
-          '<div class="field full"><label>Telefone / WhatsApp</label><input id="eu-telefone" type="text" value="'+esc(u.telefone||'')+'" placeholder="(31) 90000-0000" oninput="PS.maskTelefone(this)"></div>'+
-        '</div>'+
+                  '</div>'+
         '<p style="font-size:.76rem; color:var(--ink-faint);">O e-mail de acesso não pode ser alterado por aqui — entre em contato com o suporte técnico, se necessário.</p>'+
         '<div id="eu-empresa-wrap" style="display:'+(u.role==='cliente'?'block':'none')+';">'+
           empresaSelectHtml+
@@ -5650,6 +5375,11 @@ function abrirEditarUsuario(id){
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
+  /* "Freelancer" só aparece para quem já é freelancer; telefone só para Administrador */
+  var frRadio = document.querySelector('input[name="eu-tipo-acesso"][value="freelancer"]');
+  if(frRadio && u.role !== 'freelancer'){ var frLabel = frRadio.closest('label'); if(frLabel) frLabel.remove(); }
+  var telInput = document.getElementById('eu-telefone'), telCampo = telInput && telInput.closest('.field');
+  if(telCampo){ telCampo.id = 'eu-telefone-wrap'; telCampo.style.display = u.role==='admin' ? '' : 'none'; }
 }
 function euToggleTipoAcesso(){
   var tipo = (document.querySelector('input[name="eu-tipo-acesso"]:checked')||{}).value || 'admin';
@@ -5657,6 +5387,8 @@ function euToggleTipoAcesso(){
   var permWrap = document.getElementById('eu-permissoes-wrap');
   if(empresaWrap) empresaWrap.style.display = tipo==='cliente' ? 'block' : 'none';
   if(permWrap) permWrap.style.display = (tipo==='colaborador' || tipo==='freelancer') ? 'flex' : 'none';
+  var telWrap = document.getElementById('eu-telefone-wrap');
+  if(telWrap) telWrap.style.display = tipo==='admin' ? '' : 'none';
 }
 function euAtualizarCamposEmpresa(){
   var sel = document.getElementById('eu-empresa-select');
@@ -5682,7 +5414,7 @@ async function salvarEdicaoUsuario(id){
 
   var snapshotUsuario = JSON.parse(JSON.stringify(u));
   u.nome = nome;
-  u.telefone = telefone || '—';
+  /* o telefone não é mais pedido: o que já estiver cadastrado fica como está */
   u.role = novoRole;
   if(novoRole!=='admin') u.principal = false;
   if(novoRole==='colaborador' || novoRole==='freelancer'){
@@ -5715,8 +5447,8 @@ async function salvarEdicaoUsuario(id){
   saveState();
   render();
 
-  var resUsuario = await supa.from('usuarios').update(usuarioParaRow(u)).eq('id', u.id);
-  var resEmpresa = c ? await supa.from('empresas').update(empresaParaRow(c)).eq('id', c.id) : {error:null};
+  var resUsuario = await planilha.from('usuarios').update(usuarioParaRow(u)).eq('id', u.id);
+  var resEmpresa = c ? await planilha.from('empresas').update(empresaParaRow(c)).eq('id', c.id) : {error:null};
 
   if(!resUsuario.error && !resEmpresa.error){
     closePanel();
@@ -5744,13 +5476,11 @@ function openNovoUsuario(){
           '<div class="radio-group">'+
             '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="admin" onchange="PS.nuToggleTipoAcesso()"> Administrador</label>'+
             '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="colaborador" checked onchange="PS.nuToggleTipoAcesso()"> Colaborador</label>'+
-            '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="freelancer" onchange="PS.nuToggleTipoAcesso()"> Freelancer</label>'+
           '</div>'+
         '</div>'+
         '<div class="form-grid">'+
           '<div class="field full"><label>Nome completo <span class="req-mark">*</span></label><input id="nu-nome" type="text" placeholder="Ex: João Pereira"></div>'+
           '<div class="field full"><label>E-mail da conta Microsoft <span class="req-mark">*</span></label><input id="nu-email" type="text" placeholder="nome@lucralize.com.br"></div>'+
-          '<div class="field full"><label>Telefone / WhatsApp</label><input id="nu-telefone" type="text" placeholder="(31) 90000-0000"></div>'+
         '</div>'+
         '<div id="nu-permissoes-wrap" style="display:flex; flex-direction:column; gap:.5rem;">'+
           '<label>Permissões de acesso</label>'+
@@ -5772,7 +5502,7 @@ async function criarUsuario(){
   var tipoAcesso = (document.querySelector('input[name="nu-tipo-acesso"]:checked')||{}).value || 'colaborador';
   var nome = document.getElementById('nu-nome').value.trim();
   var email = document.getElementById('nu-email').value.trim();
-  var telefone = document.getElementById('nu-telefone').value.trim();
+  var telefone = '';      /* o portal não pede mais telefone de usuário da equipe */
   if(!nome || !email){ toast('Preencha ao menos nome completo e e-mail.'); return; }
   if(email.indexOf('@')===-1){ toast('Informe o e-mail completo da conta Microsoft.'); return; }
   var btnCriar = document.querySelector('.panel-foot .btn-primary');
@@ -5785,7 +5515,7 @@ async function criarUsuario(){
       permissoesNovoUsuario[pm.id] = !!(el && el.checked);
     });
   }
-  var funcResp = await supa.functions.invoke('criar-usuario', {body:{nome:nome, email:email, telefone:telefone, role:tipoAcesso, empresaId:null, permissoes:permissoesNovoUsuario}});
+  var funcResp = await planilha.functions.invoke('criar-usuario', {body:{nome:nome, email:email, telefone:telefone, role:tipoAcesso, empresaId:null, permissoes:permissoesNovoUsuario}});
   if(funcResp.error || (funcResp.data && funcResp.data.erro)){
     if(btnCriar){ btnCriar.disabled = false; btnCriar.textContent = 'Liberar acesso'; }
     toast('Não foi possível liberar o acesso: '+(funcResp.error ? funcResp.error.message : funcResp.data.erro));
@@ -5816,8 +5546,6 @@ function abrirModalAcessoCriado(nome, email){
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
 }
-
-
 
 /* =========================================================
    AJUSTES (documento "Instruções para ajustes no portal")
@@ -5878,7 +5606,7 @@ async function confirmarExcluirArquivo(id, categoria, idx, path){
   /* o processo já não aponta mais para o arquivo; agora apaga o arquivo em si (se falhar, sobra só um arquivo solto) */
   if(removido.path){
     try{
-      var r = await supa.storage.from(STORAGE_BUCKET).remove([removido.path]);
+      var r = await planilha.arquivos.remove([removido.path]);
       if(r && r.error) console.warn('Arquivo removido do processo, mas não do SharePoint:', r.error.message);
     }catch(e){ console.warn('Arquivo removido do processo, mas não do SharePoint:', e); }
   }
@@ -5910,7 +5638,7 @@ async function confirmarExcluirUsuario(id){
   var eu = currentUser(), u = getUser(id);
   if(!eu || eu.role!=='admin' || !u || u.id===eu.id){ closePanel(); return; }
   var btn = document.querySelector('.panel-foot .btn-danger'); if(btn){ btn.disabled = true; btn.textContent = 'Excluindo…'; }
-  var res = await supa.from('usuarios').delete().eq('id', id);
+  var res = await planilha.from('usuarios').delete().eq('id', id);
   if(res.error){
     if(btn){ btn.disabled = false; btn.textContent = 'Excluir usuário'; }
     toast('Não foi possível excluir o usuário: '+res.error.message);
@@ -6400,7 +6128,7 @@ async function solicitacaoFresca(id, statusEsperado){
   return {p:fresco};
 }
 async function gerarOSEstrita(){
-  var r = await supa.rpc('gerar_ordem_servico');
+  var r = await planilha.rpc('gerar_ordem_servico');
   if(r.error || !r.data) throw new Error((r.error && r.error.message) || 'Não foi possível gerar a OS.');
   return r.data;
 }
@@ -6417,7 +6145,7 @@ async function aprovarSolicitacao(id){
     empresa = digitos.length === 14 ? state.companies.filter(function(c){ return String(c.cnpj || '').replace(/\D/g, '') === digitos; })[0] : null;
     if(!empresa){
       empresa = {id:'c'+Date.now(), nome:es.nome || nomeParaProcesso(p), cnpj:digitos.length === 14 ? formatarCnpj(digitos) : '—', tipo:es.tipo || 'LTDA', divisao:p.divisao || 'contabilidade'};
-      var ins = await supa.from('empresas').insert(empresaParaRow(empresa));
+      var ins = await planilha.from('empresas').insert(empresaParaRow(empresa));
       if(ins.error) throw new Error('Não foi possível cadastrar a empresa: '+ins.error.message);
       state.companies.push(empresa); criouEmpresa = true;
     }
@@ -6698,15 +6426,11 @@ async function dispararEmail(p){
    ========================================================= */
 window.PS = {
   entrarFuncionario: entrarFuncionario, homeAbrirCliente: homeAbrirCliente, homeVoltar: homeVoltar,
-  login: login, logout: logout, go: go, setTheme: setTheme, resetDemo: resetDemo,
-  openService: openService, closePanel: closePanel, openEsqueciSenha: openEsqueciSenha, toggleItemInterno: toggleItemInterno,
-  submeterLogin: submeterLogin, trocarSenhaEnviarLink: trocarSenhaEnviarLink, trocarSenhaDefinirSenha: trocarSenhaDefinirSenha,
-  trocarSenhaReenviarLink: trocarSenhaReenviarLink, trocarSenhaVoltarLogin: trocarSenhaVoltarLogin,
+  logout: logout, go: go, setTheme: setTheme, openService: openService, closePanel: closePanel, toggleItemInterno: toggleItemInterno,
   selecionarTipoProcesso: selecionarTipoProcesso, mudarMesConcluidos: mudarMesConcluidos,
   openSolicitarForm: openSolicitarForm, onDocFileChosen: onDocFileChosen, enviarSolicitacao: enviarSolicitacao,
   avancarEtapa: avancarEtapa, anexarDocumento: anexarDocumento, anexarDocPendente: anexarDocPendente, baixarArquivoReal: baixarArquivoReal,
-  openNovoUsuario: openNovoUsuario, criarUsuario: criarUsuario, nuToggleTipoAcesso: nuToggleTipoAcesso, toast: toast,
-  abrirEditarUsuario: abrirEditarUsuario, salvarEdicaoUsuario: salvarEdicaoUsuario,
+  openNovoUsuario: openNovoUsuario, criarUsuario: criarUsuario, nuToggleTipoAcesso: nuToggleTipoAcesso, abrirEditarUsuario: abrirEditarUsuario, salvarEdicaoUsuario: salvarEdicaoUsuario,
   euToggleTipoAcesso: euToggleTipoAcesso, euAtualizarCamposEmpresa: euAtualizarCamposEmpresa,
   salvarProtocolo: salvarProtocolo, filtrarProcessosLive: filtrarProcessosLive, limparFiltrosProcessos: limparFiltrosProcessos,
   fabAtualizarSocios: fabAtualizarSocios, fabRegenerarSocios: fabRegenerarSocios, fabNomeSocioChanged: fabNomeSocioChanged,
@@ -6723,12 +6447,12 @@ window.PS = {
   alvToggleAlvaraAtualNA: alvToggleAlvaraAtualNA, alvToggleLocal: alvToggleLocal, alvToggleSanitarioNA: alvToggleSanitarioNA,
   alvToggleCiente: alvToggleCiente, enviarSolicitacaoAlvara: enviarSolicitacaoAlvara,
   repToggleTipos: repToggleTipos, repAtualizarEstadoBotao: repAtualizarEstadoBotao, enviarSolicitacaoRepresentante: enviarSolicitacaoRepresentante,
-  abrirModalComplemento: abrirModalComplemento, confirmarAvancoComplemento: confirmarAvancoComplemento,
+  confirmarAvancoComplemento: confirmarAvancoComplemento,
   abrirModalReiniciar: abrirModalReiniciar, confirmarReiniciarProcesso: confirmarReiniciarProcesso,
   abrirModalIncluirProcesso: abrirModalIncluirProcesso, confirmarIncluirProcessoManual: confirmarIncluirProcessoManual,
   abrirModalExcluirProcesso: abrirModalExcluirProcesso, confirmarExcluirProcesso: confirmarExcluirProcesso, atualizarModalExcluirTeste: atualizarModalExcluirTeste,
   manualAtualizarEtapas: manualAtualizarEtapas, manualToggleEmpresa: manualToggleEmpresa,
-  goLinkPublico: goLinkPublico, linkPublicoSair: linkPublicoSair, linkPublicoSubmitGate: linkPublicoSubmitGate,
+  linkPublicoSair: linkPublicoSair, linkPublicoSubmitGate: linkPublicoSubmitGate,
   linkPublicoSetTipo: linkPublicoSetTipo,
   linkPublicoIniciarFluxo: linkPublicoIniciarFluxo,
   abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
@@ -6750,7 +6474,7 @@ function aplicarLinkAvulso(){
 }
 
 /* =========================================================
-   8) INICIALIZAÇÃO — sessão real do Supabase Auth
+   8) INICIALIZAÇÃO — sessão da conta Microsoft
    ========================================================= */
 aplicarLinkAvulso();
 render();
