@@ -1397,7 +1397,7 @@ async function comRetentativa(fn, tentativas, delayMs){
 }
 async function uploadArquivoReal(file, processoId, subpasta){
   if(!file) return null;
-  if(!currentUser() && !ANEXOS_ATIVOS) return {nome:file.name, path:null, naoEnviado:true};   /* cliente: anexos ainda não implementados */
+  if(!currentUser()) return registrarAnexoDoCliente(file, subpasta);   /* cliente: o arquivo sobe depois que o pedido receber o código */
   var path = processoId+'/'+subpasta+'/'+Date.now()+'-'+sanitizeFileName(file.name);
   return await comRetentativa(async function(){
     var up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
@@ -1409,7 +1409,7 @@ async function baixarArquivoReal(path){
   if(!path){ toast('Arquivo não disponível para download.'); return; }
   try{
     var res = await supa.storage.from(STORAGE_BUCKET).createSignedUrl(path, 3600);
-    if(res.error || !res.data){ toast('Não foi possível gerar o link de download.'); return; }
+    if(res.error || !res.data){ toast(res.error && /404/.test(res.error.message || '') ? 'Arquivo não encontrado na pasta. Se veio do cliente, o envio pode não ter terminado: peça para ele reenviar.' : 'Não foi possível gerar o link de download.'); return; }
     window.open(res.data.signedUrl, '_blank');
   }catch(e){
     console.error(e);
@@ -1472,7 +1472,7 @@ function rowParaUsuario(row){
 function empresaParaRow(c){ return {id:c.id, dados:c}; }
 function rowParaEmpresa(row){ var c = Object.assign({}, row.dados); c.id = row.id; return c; }
 function processoParaRow(p){ return {id:p.id, empresa_id:p.empresaId||null, responsavel_id:p.responsavelId||null, dados:p}; }
-function rowParaProcesso(row){ var p = Object.assign({}, row.dados); p.id = row.id; return iniciarSemPagamento(p); }
+function rowParaProcesso(row){ var p = Object.assign({}, row.dados); p.id = row.id; completarCaminhosDoCliente(p); return iniciarSemPagamento(p); }
 function excluidoParaRow(x){ return {id:x.id, dados:x}; }
 function rowParaExcluido(row){ var x = Object.assign({}, row.dados); x.id = row.id; return x; }
 
@@ -2836,7 +2836,7 @@ async function enviarSolicitacao(serviceId){
       var file = (input && input.files && input.files[0]) ? input.files[0] : null;
       if(!file) return {nome:nome, arquivo:null};
       var doc = await uploadArquivoReal(file, id, 'solicitacao');
-      return {nome:nome, arquivo:doc.nome, path:doc.path};
+      return {nome:nome, arquivo:doc.nome, path:doc.path, pendenteUpload:doc.pendenteUpload, nomeArq:doc.nomeArq};
     }));
   }catch(e){
     console.error('Erro ao enviar documentos da solicitação:', e);
@@ -5979,7 +5979,8 @@ function copiarCodigo(codigo){
 /* endereços dos fluxos do Power Automate (gatilho HTTP) — colar aqui depois de criar cada fluxo */
 var CLIENTE_API = {
   consultar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/ed3891a749d6410f97a18ddb50980b7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zFPO-mfx4JYinr-ItKroFerz1Y3J4VZ4AYjKG3_ukmc',
-  criar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/fd3fd9690e494a788915c8ad9df6a8c5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=09e80T4_yD5R1x4Jozu2pZXWrdE-NE2Z8eH4zxMYtmQ'
+  criar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/fd3fd9690e494a788915c8ad9df6a8c5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=09e80T4_yD5R1x4Jozu2pZXWrdE-NE2Z8eH4zxMYtmQ',
+  enviar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/11/workflows/d0986bbb8f1b4cdbaa3affe0065c6a29/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=j_YssY2wvFqhpFkt874MUKFDPVYoM9HRZIcb6K9Moyo'
 };
 
 /* ---------- versão pública do processo (gravada na coluna Publico) ---------- */
@@ -6123,7 +6124,6 @@ async function clienteConsultar(){
    Processos com status "solicitado", sem OS e sem empresa. A equipe vê esses pedidos na aba
    "Processos sem OS" e decide: aprovar (gera a OS e cadastra/reaproveita a empresa) ou recusar.
    ========================================================= */
-var ANEXOS_ATIVOS = false;     /* etapa de anexos do cliente: ainda não implementada (os arquivos não são enviados) */
 var AVISO_PRIVACIDADE = 'Os dados e documentos que você informar serão usados pela Lucralize apenas para analisar e executar o serviço solicitado. Ficam armazenados com acesso restrito à equipe e só serão compartilhados com órgãos públicos quando isso for necessário para realizar o serviço. Para pedir informações ou a exclusão dos seus dados, fale com a Lucralize.';
 
 function cnpjValido(v){
@@ -6138,6 +6138,7 @@ function formatarCnpj(d){ d = String(d || '').replace(/\D/g, ''); return d.lengt
 
 /* ---------- lado do cliente: telas ---------- */
 function iniciarSolicitacao(){
+  _anexos = []; _anexosPedido = null;
   state.visitante = null; state.visitanteTipo = null; state.visitanteFluxo = null;
   go({name:'link-publico', etapa:'divisao'});
 }
@@ -6210,8 +6211,9 @@ function renderLinkPublicoConfirmacao(codigo){
       '<button class="btn btn-ghost btn-sm" onclick="PS.copiarCodigo(\''+esc(codigo||'')+'\')">Copiar código</button>'+
     '</div>'+
     '<div class="obs-note" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink); line-height:1.5;"><strong>Anote este código agora.</strong> Ele é a única forma de consultar o andamento do seu pedido, sem usuário e senha. Se perder o código, entre em contato com a Lucralize informando o nome da empresa.</div>'+
-    '<button class="btn btn-primary btn-block" onclick="PS.clienteConsultarAgora(\''+esc(codigo||'')+'\')">Consultar este pedido agora</button>'+
-    '<button class="btn btn-ghost btn-block" onclick="PS.linkPublicoSair()">Voltar para o início</button>'
+    htmlAnexosConfirmacao()+
+    '<button class="btn btn-primary btn-block"'+(anexosPendentes() ? ' disabled' : '')+' onclick="PS.clienteConsultarAgora(\''+esc(codigo||'')+'\')">Consultar este pedido agora</button>'+
+    '<button class="btn btn-ghost btn-block"'+(anexosPendentes() ? ' disabled' : '')+' onclick="PS.linkPublicoSair()">Voltar para o início</button>'
   , {});
 }
 function clienteConsultarAgora(codigo){
@@ -6220,18 +6222,19 @@ function clienteConsultarAgora(codigo){
   setTimeout(function(){ if(document.getElementById('cli-codigo')) clienteConsultar(); }, 60);
 }
 
-/* aviso enquanto os anexos do cliente não são enviados de verdade */
+/* orientação sobre os anexos no topo dos formulários do cliente */
 var _avisoAnexosIniciado = false;
 function iniciarAvisoAnexos(){
+  iniciarAnexosCliente();
   if(_avisoAnexosIniciado || typeof MutationObserver === 'undefined') return;
   _avisoAnexosIniciado = true;
   new MutationObserver(function(muts){
-    if(ANEXOS_ATIVOS || currentUser()) return;
+    if(currentUser()) return;
     muts.forEach(function(m){ [].forEach.call(m.addedNodes, function(n){
       if(n.nodeType !== 1 || !n.querySelector) return;
       var pb = (n.classList && n.classList.contains('panel-body')) ? n : n.querySelector('.panel-body');
       if(pb && !pb.querySelector('.aviso-anexos')){
-        pb.insertAdjacentHTML('afterbegin', '<div class="obs-note aviso-anexos" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink); font-size:.82rem; line-height:1.5;"><strong>Fase de testes:</strong> os arquivos anexados ainda não são enviados à equipe; só os nomes ficam registrados.</div>');
+        pb.insertAdjacentHTML('afterbegin', '<div class="obs-note aviso-anexos" style="background:var(--primary-soft); border:1px solid var(--primary); color:var(--ink); font-size:.82rem; line-height:1.5;"><strong>Sobre os anexos:</strong> eles são enviados logo depois que o pedido for registrado, e você verá o andamento na tela final. Aceitamos PDF, JPG, PNG, HEIC, Word e Excel, com até 15 MB cada.</div>');
       }
     }); });
   }).observe(document.body, {childList:true, subtree:true});
@@ -6247,6 +6250,11 @@ function dadosEmpresaDoPedido(processo){
   return {nome: nome || v.nome || '', cnpj: cnpj, tipo: tipo};
 }
 async function enviarSolicitacaoPublica(processo){
+  var ok = await enviarSolicitacaoPublicaInterno(processo);
+  if(!ok) _anexos = [];        /* o formulário será reenviado e refaz a fila */
+  return ok;
+}
+async function enviarSolicitacaoPublicaInterno(processo){
   var v = state.visitante || {};
   if(!v.aceite){ toast('Para enviar, é preciso concordar com o aviso de privacidade.'); return false; }
   if(!CLIENTE_API.criar){ toast('O envio de solicitações ainda não está disponível.'); return false; }
@@ -6272,7 +6280,12 @@ async function enviarSolicitacaoPublica(processo){
     var j = await resp.json();
     if(j && j.ok === true && /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(String(j.codigo || ''))){
       closePanel();
+      var idOk = /^p[0-9a-f]{32}$/.test(String(j.processoId || ''));
+      _anexosPedido = idOk ? j.processoId : null;
+      if(!idOk){ _anexos.forEach(function(a){ a.estado = 'falhou'; a.erro = 'Envio indisponível.'; }); }
       go({name:'link-publico', etapa:'confirmacao', codigo:j.codigo});
+      if(idOk && _anexos.length && CLIENTE_API.enviar) setTimeout(enviarAnexosDoPedido, 60);
+      else if(_anexos.length){ _anexos.forEach(function(a){ a.estado = 'falhou'; }); atualizarTelaDosAnexos(); }
       return true;
     }
     console.warn('Resposta do fluxo Criar:', j);
@@ -6450,6 +6463,131 @@ async function reabrirSolicitacao(id){
 }
 
 /* =========================================================
+   ANEXOS DO CLIENTE (sem conta)
+   Os arquivos escolhidos no formulário ficam guardados no navegador. Só depois que o pedido é
+   registrado e o cliente recebe o código, cada arquivo sobe pelo fluxo "Enviar arquivo", que o
+   grava em Documentos/<id do pedido>. O portal da equipe monta o caminho de download a partir
+   do id do pedido e do nome combinado (campo do formulário + data + nome do arquivo).
+   ========================================================= */
+var ANEXO_TIPOS = ['pdf','jpg','jpeg','png','heic','doc','docx','xls','xlsx'];
+var ANEXO_MAX_BYTES = 15 * 1024 * 1024;
+var _anexos = [];            /* {nomeArq, nomeOriginal, file, estado:'aguardando'|'enviando'|'ok'|'falhou', erro} */
+var _anexosPedido = null;    /* id do pedido (devolvido pelo fluxo "Criar") */
+var _anexoSeq = 0;
+
+function extensaoDe(nome){ var m = /\.([A-Za-z0-9]+)$/.exec(String(nome || '')); return m ? m[1].toLowerCase() : ''; }
+function validarAnexo(file){
+  if(!file) return 'Arquivo inválido.';
+  if(ANEXO_TIPOS.indexOf(extensaoDe(file.name)) === -1) return 'Tipo de arquivo não aceito. Envie PDF, JPG, PNG, HEIC, Word ou Excel.';
+  if(file.size === 0) return 'O arquivo está vazio.';
+  if(file.size > ANEXO_MAX_BYTES) return 'O arquivo tem mais de 15 MB. Reduza o tamanho e tente de novo.';
+  return '';
+}
+function nomeCurtoSeguro(nome){
+  var ext = extensaoDe(nome), s = sanitizeFileName(nome);
+  if(s.length > 80){ var base = s.slice(0, s.length - ext.length - 1); s = base.slice(0, 80 - ext.length - 1) + '.' + ext; }
+  return s.replace(/\.\.+/g, '_');
+}
+/* chamado pelos formulários no lugar do envio real (cliente sem conta) */
+function registrarAnexoDoCliente(file, subpasta){
+  var erro = validarAnexo(file);
+  if(erro) throw new Error(erro);
+  var slug = String(subpasta || 'anexo').split('/').pop().replace(/[^a-zA-Z0-9-]+/g, '-').slice(0, 40) || 'anexo';
+  var nomeArq = slug + '__' + Date.now() + '-' + (++_anexoSeq) + '-' + nomeCurtoSeguro(file.name);
+  _anexos.push({nomeArq:nomeArq, nomeOriginal:file.name, file:file, estado:'aguardando', erro:''});
+  return {nome:file.name, path:null, pendenteUpload:true, nomeArq:nomeArq};
+}
+/* valida na hora em que o cliente escolhe o arquivo (antes do formulário inteiro ser preenchido) */
+var _anexosIniciado = false;
+function iniciarAnexosCliente(){
+  if(_anexosIniciado) return; _anexosIniciado = true;
+  document.addEventListener('change', function(e){
+    var el = e.target;
+    if(!el || el.type !== 'file' || currentUser()) return;
+    var f = el.files && el.files[0]; if(!f) return;
+    var erro = validarAnexo(f);
+    if(erro){
+      el.value = ''; e.stopImmediatePropagation();
+      var txt = document.getElementById(el.id + '-txt'); if(txt) txt.textContent = 'Anexar arquivo';
+      var row = el.closest && el.closest('.upload-row'); if(row) row.classList.remove('attached');
+      toast(erro);
+    }
+  }, true);
+  window.addEventListener('beforeunload', function(e){ if(_anexos.some(function(a){ return a.estado === 'aguardando' || a.estado === 'enviando'; })){ e.preventDefault(); e.returnValue = ''; } });
+}
+function lerBase64(file){
+  return new Promise(function(res, rej){
+    var r = new FileReader();
+    r.onload = function(){ var s = String(r.result || ''), i = s.indexOf(','); res(i >= 0 ? s.slice(i + 1) : s); };
+    r.onerror = function(){ rej(r.error || new Error('Falha ao ler o arquivo.')); };
+    r.readAsDataURL(file);
+  });
+}
+function atualizarTelaDosAnexos(){ if(state.view && state.view.name === 'link-publico' && state.view.etapa === 'confirmacao') render(); }
+async function enviarUmAnexo(item){
+  item.estado = 'enviando'; item.erro = ''; atualizarTelaDosAnexos();
+  var b64;
+  try{ b64 = await lerBase64(item.file); }
+  catch(e){ item.estado = 'falhou'; item.erro = 'Não foi possível ler o arquivo.'; atualizarTelaDosAnexos(); return false; }
+  for(var t = 1; t <= 3; t++){
+    var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 120000);
+    try{
+      var resp = await fetch(CLIENTE_API.enviar, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({acao:'enviar', processoId:_anexosPedido, nome:item.nomeArq, conteudoBase64:b64}), signal:ctl.signal, cache:'no-store'});
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      var j = await resp.json();
+      if(j && j.ok === true){ item.estado = 'ok'; atualizarTelaDosAnexos(); return true; }
+      if(j && j.erro === 'arquivo_invalido'){ item.estado = 'falhou'; item.erro = 'Arquivo não aceito.'; atualizarTelaDosAnexos(); return false; }
+      throw new Error('resposta: ' + (j && j.erro));
+    }catch(e){
+      console.error('Envio do anexo "' + item.nomeOriginal + '" (tentativa ' + t + '):', e);
+    }finally{
+      clearTimeout(tm);
+    }
+    if(t < 3) await msEspera(1500 * t);
+  }
+  item.estado = 'falhou'; item.erro = 'Não foi possível enviar.'; atualizarTelaDosAnexos(); return false;
+}
+async function enviarAnexosDoPedido(){
+  for(var i = 0; i < _anexos.length; i++){
+    if(_anexos[i].estado === 'aguardando') await enviarUmAnexo(_anexos[i]);
+  }
+}
+function reenviarAnexo(i){
+  var it = _anexos[i]; if(!it || it.estado !== 'falhou') return;
+  it.estado = 'aguardando'; it.erro = ''; atualizarTelaDosAnexos();
+  enviarUmAnexo(it);
+}
+function anexosPendentes(){ return _anexos.some(function(a){ return a.estado === 'aguardando' || a.estado === 'enviando'; }); }
+function htmlAnexosConfirmacao(){
+  if(!_anexos.length) return '';
+  var ok = _anexos.filter(function(a){ return a.estado === 'ok'; }).length, falhas = _anexos.filter(function(a){ return a.estado === 'falhou'; }).length;
+  var pend = anexosPendentes();
+  var titulo = pend ? 'Enviando arquivos ('+ok+' de '+_anexos.length+')…' : (falhas ? falhas+' arquivo'+(falhas === 1 ? '' : 's')+' não '+(falhas === 1 ? 'foi enviado' : 'foram enviados') : 'Todos os arquivos foram enviados.');
+  var linhas = _anexos.map(function(a, i){
+    var ic = {aguardando:'⏳', enviando:'⬆', ok:'✓', falhou:'⚠'}[a.estado];
+    return '<div style="display:flex; align-items:center; gap:.5rem; font-size:.84rem; padding:.3rem 0;">'+
+      '<span style="width:1.2rem; text-align:center;">'+ic+'</span>'+
+      '<span style="flex:1; word-break:break-all;">'+esc(a.nomeOriginal)+'</span>'+
+      (a.estado === 'falhou' ? '<button class="btn btn-ghost btn-sm" onclick="PS.reenviarAnexo('+i+')">Reenviar</button>' : '')+
+    '</div>';
+  }).join('');
+  return '<div class="card" style="padding:.9rem 1.1rem; text-align:left; border:1px solid var(--border);">'+
+    '<strong style="font-size:.9rem;">'+esc(titulo)+'</strong>'+linhas+
+    (pend ? '<div style="font-size:.78rem; color:var(--warning); margin-top:.4rem;">Não feche esta página até terminar o envio.</div>' : '')+
+    (!pend && falhas ? '<div style="font-size:.78rem; color:var(--ink-soft); margin-top:.4rem;">Toque em Reenviar. Se continuar falhando, entre em contato com a Lucralize informando o código acima.</div>' : '')+
+  '</div>';
+}
+/* caminho de download dos arquivos que o cliente enviou (lado da equipe) */
+function completarCaminhosDoCliente(p){
+  (function andar(o){
+    if(!o || typeof o !== 'object') return;
+    if(Array.isArray(o)){ o.forEach(andar); return; }
+    if(o.pendenteUpload && o.nomeArq && !o.path) o.path = p.id + '/' + o.nomeArq;
+    Object.keys(o).forEach(function(k){ andar(o[k]); });
+  })(p);
+  return p;
+}
+/* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
 window.PS = {
@@ -6491,6 +6629,7 @@ window.PS = {
   abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario,
   vistoriaNaoNecessaria: vistoriaNaoNecessaria,
   clienteVoltarMenu: clienteVoltarMenu, clienteConsultarAgora: clienteConsultarAgora,
+  reenviarAnexo: reenviarAnexo,
   aprovarSolicitacao: aprovarSolicitacao, abrirModalRecusar: abrirModalRecusar, confirmarRecusa: confirmarRecusa, reabrirSolicitacao: reabrirSolicitacao,
   copiarCodigo: copiarCodigo,
   clienteIr: clienteIr, clienteVoltar: clienteVoltar, clienteNovaConsulta: clienteNovaConsulta, clienteMascara: clienteMascara, clienteConsultar: clienteConsultar
