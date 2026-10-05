@@ -6494,7 +6494,6 @@ function nomeCurtoSeguro(nome){
   if(s.length > 80){ var base = s.slice(0, s.length - ext.length - 1); s = base.slice(0, 80 - ext.length - 1) + '.' + ext; }
   return s.replace(/\.\.+/g, '_');
 }
-  
 /* chamado pelos formulários no lugar do envio real (cliente sem conta) */
 function registrarAnexoDoCliente(file, subpasta){
   var erro = validarAnexo(file);
