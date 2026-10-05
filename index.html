@@ -1083,15 +1083,16 @@ var XLT = {
     unshape: function(row){ var d = row.dados || {}; return { Id: row.id, Nome: d.nome || '', CNPJ: d.cnpj || '', DadosJson: JSON.stringify(d) }; }
   },
   processos: {
-    tab: 'Processos', cols: ['Id','OS','ServicoId','Status','Divisao','EmpresaId','ResponsavelId','CriadoEm','DadosJson','DadosJson2','DadosJson3','DadosJson4','Codigo','Publico'], chunks: ['DadosJson','DadosJson2','DadosJson3','DadosJson4'],
-    derived: ['Codigo','Publico'],     /* calculadas a partir do processo; servem ao fluxo de consulta do cliente e não entram na comparação de mudanças */
-    novas: ['Codigo','Publico'],
+    tab: 'Processos', cols: ['Id','OS','ServicoId','Status','Divisao','EmpresaId','ResponsavelId','CriadoEm','DadosJson','DadosJson2','DadosJson3','DadosJson4','Codigo','Publico','EmailInfo'], chunks: ['DadosJson','DadosJson2','DadosJson3','DadosJson4'],
+    derived: ['Codigo','Publico','EmailInfo'],     /* calculadas a partir do processo; servem ao fluxo de consulta do cliente e não entram na comparação de mudanças */
+    novas: ['Codigo','Publico','EmailInfo'],
     shape: function(c){ var d = xlParse(xlJoin(c, this.chunks)); d.id = String(c.Id); return { id: String(c.Id), empresa_id: d.empresaId || null, responsavel_id: d.responsavelId || null, dados: d }; },
     unshape: function(row){
       var d = row.dados || {};
       var o = { Id: row.id, OS: d.ordemServico || '', ServicoId: d.servicoId || '', Status: d.status || '', Divisao: d.divisao || '', EmpresaId: row.empresa_id || '', ResponsavelId: row.responsavel_id || '', CriadoEm: d.criadoEm || '',
         Codigo: d.codigoAcompanhamento || '',
-        Publico: d.codigoAcompanhamento ? JSON.stringify(publicoDoProcesso(d)) : '' };    /* só o que o cliente pode ver; o fluxo lê SÓ esta coluna */
+        Publico: d.codigoAcompanhamento ? JSON.stringify(publicoDoProcesso(d)) : '',    /* só o que o cliente pode ver; o fluxo "Consultar" lê SÓ esta coluna */
+        EmailInfo: d.emailPendente ? JSON.stringify({evento: d.emailPendente.evento, para: d.emailPendente.para, assunto: d.emailPendente.assunto, corpoHtml: d.emailPendente.corpoHtml}) : '' };   /* e-mail a enviar; o fluxo de e-mail lê esta coluna */
       return Object.assign(o, xlSplit(JSON.stringify(d), this.chunks));
     }
   },
@@ -4990,12 +4991,14 @@ async function executarAvancoEtapa(id, pendenciasTexto){
        mensagem "os documentos finais ficarão disponíveis aqui" normalmente,
        em vez de um link quebrado. */
   }
+  prepararEmailDaEtapa(p, p.status==='concluido' ? 'concluido' : 'etapa', etapas[p.etapaAtual]);
   saveState();
   closePanel();
   render();
   var ok = await salvarProcessoNoServidor(p);
   if(ok){
-    toast('Etapa atualizada — o cliente já vê a atualização no portal dele.');
+    toast('Etapa atualizada — o cliente já vê a atualização no portal dele.' + (emailDoCliente(p) ? ' O e-mail ao cliente foi solicitado.' : ' Este processo não tem e-mail do cliente: nenhum e-mail será enviado.'));
+    dispararEmail(p);
   } else {
     Object.assign(p, snapshot);
     saveState();
@@ -5904,10 +5907,12 @@ async function vistoriaNaoNecessaria(id){
   p.vistoriaNaoNecessaria = true;
   p.etapaAtual = destino;    /* pula direto para a última etapa; concluir continua sendo um clique deliberado (ver executarAvancoEtapa) */
   p.historico.push({data:todayISO(), hora:nowHM(), texto:'Vistoria/análise do órgão não necessária para este processo. '+etapas[destino]+'.', autor:nomeAutorAtual()});
+  prepararEmailDaEtapa(p, 'etapa', etapas[destino]);
   saveState(); render();
   var ok = await salvarProcessoNoServidor(p);
   if(ok){
-    toast('Vistoria/análise marcada como não necessária.');
+    toast('Vistoria/análise marcada como não necessária.' + (emailDoCliente(p) ? ' O e-mail ao cliente foi solicitado.' : ''));
+    dispararEmail(p);
   } else {
     Object.assign(p, snapshot);
     saveState(); render();
@@ -5980,7 +5985,8 @@ function copiarCodigo(codigo){
 var CLIENTE_API = {
   consultar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/ed3891a749d6410f97a18ddb50980b7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zFPO-mfx4JYinr-ItKroFerz1Y3J4VZ4AYjKG3_ukmc',
   criar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/fd3fd9690e494a788915c8ad9df6a8c5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=09e80T4_yD5R1x4Jozu2pZXWrdE-NE2Z8eH4zxMYtmQ',
-  enviar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/11/workflows/d0986bbb8f1b4cdbaa3affe0065c6a29/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=j_YssY2wvFqhpFkt874MUKFDPVYoM9HRZIcb6K9Moyo'
+  enviar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/11/workflows/d0986bbb8f1b4cdbaa3affe0065c6a29/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=j_YssY2wvFqhpFkt874MUKFDPVYoM9HRZIcb6K9Moyo',
+  email: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/19/workflows/63ed1552b5144dd28212cf5d9749ab99/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cOF4mff_KTuzkYVebQIJZ805vkkYeuImHzrnmmbV_34'     /* fluxo "Enviar e-mail" (Power Automate) */
 };
 
 /* ---------- versão pública do processo (gravada na coluna Publico) ---------- */
@@ -6587,6 +6593,72 @@ function completarCaminhosDoCliente(p){
   })(p);
   return p;
 }
+/* =========================================================
+   E-MAIL AO CLIENTE A CADA PASSAGEM DE ETAPA
+   O texto do e-mail é gravado pela equipe, na MESMA gravação da etapa, na coluna EmailInfo da
+   linha do processo. Depois o portal avisa o fluxo do Power Automate, mandando só o id do processo
+   e o número do evento. O fluxo lê a coluna, confere o evento, envia em nome de
+   processos@lucralize.com.br e registra o envio. O endereço do fluxo não aceita texto de ninguém:
+   só consegue enviar o que a equipe já gravou na planilha, uma vez por evento.
+   ========================================================= */
+/* endereço que o cliente recebe no e-mail (troque aqui se o portal mudar de endereço) */
+var PORTAL_URL_EMAIL = 'https://lucralize.github.io/portal-societario/';
+function emailDoCliente(p){
+  var e = String((p.solicitanteContato && p.solicitanteContato.email) || (p.visitante && p.visitante.email) || '').trim();
+  return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(e) ? e : '';
+}
+function primeiroNome(p){
+  var n = String((p.visitante && p.visitante.nome) || '').trim().split(/\s+/)[0] || '';
+  return n.length > 40 ? n.slice(0, 40) : n;
+}
+function cortar(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n) : s; }
+function novoIdEvento(){
+  var b = new Uint8Array(16); crypto.getRandomValues(b);
+  return Array.prototype.map.call(b, function(x){ return ('0' + x.toString(16)).slice(-2); }).join('');
+}
+function montarEmailEtapa(p, tipo, etapa, para){
+  var s = SERVICE_MAP[p.servicoId], servico = s ? s.nome : 'serviço societário';
+  var company = getCompany(p.empresaId), empresa = cortar(company ? company.nome : ((p.empresaSolicitada && p.empresaSolicitada.nome) || ''), 120);
+  var nome = primeiroNome(p), autor = cortar(nomeAutorAtual(), 80);
+  var link = PORTAL_URL_EMAIL;
+  var situacao = tipo === 'concluido' ? 'foi <strong>concluído</strong>' : 'avançou para a etapa: <strong>' + esc(cortar(etapa, 120)) + '</strong>';
+  var corpo = '<p>Olá' + (nome ? ', ' + esc(nome) : '') + '!</p>' +
+    '<p>O seu processo de <strong>' + esc(servico) + '</strong>' + (empresa ? ' (' + esc(empresa) + ')' : '') + ' ' + situacao + '.</p>' +
+    (p.codigoAcompanhamento ? '<p>Para acompanhar o andamento, acesse <a href="' + esc(link) + '">' + esc(link) + '</a>, clique em "Sou cliente" e depois em "Consultar serviço", e informe o código <strong>' + esc(p.codigoAcompanhamento) + '</strong>.</p>' : '') +
+    '<p>Qualquer dúvida, é só responder este e-mail.</p>' +
+    '<p>' + esc(autor) + '<br>Lucralize</p>';
+  return {para: para, assunto: 'Atualização do seu processo — ' + servico, corpoHtml: corpo};
+}
+/* chamado ANTES de gravar a etapa: o e-mail vai junto, na mesma gravação (se a gravação falhar, nada sai) */
+function prepararEmailDaEtapa(p, tipo, etapa){
+  var para = emailDoCliente(p);
+  if(!para) return null;
+  var m = montarEmailEtapa(p, tipo, etapa, para);
+  p.emailPendente = {evento: novoIdEvento(), para: m.para, assunto: m.assunto, corpoHtml: m.corpoHtml};
+  p.historico.push({data:todayISO(), hora:nowHM(), texto:'E-mail ao cliente ('+para+') solicitado.', autor:nomeAutorAtual()});
+  return p.emailPendente.evento;
+}
+/* chamado DEPOIS que a etapa foi gravada com sucesso; a falha daqui nunca desfaz a etapa */
+async function dispararEmail(p){
+  var ev = p.emailPendente && p.emailPendente.evento;
+  if(!ev) return;
+  if(!CLIENTE_API.email){ toast('A etapa foi atualizada, mas o envio de e-mail ainda não está configurado.'); return; }
+  var ultimo = null;
+  for(var t = 1; t <= 3; t++){
+    var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 30000);
+    try{
+      var resp = await fetch(CLIENTE_API.email, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({acao:'enviar', processoId:p.id, evento:ev}), signal:ctl.signal, cache:'no-store'});
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      var j = await resp.json();
+      if(j && j.ok === true) return;
+      throw new Error('resposta: ' + (j && j.erro));
+    }catch(e){ ultimo = e; console.error('Aviso de e-mail (tentativa ' + t + '):', e); }
+    finally{ clearTimeout(tm); }
+    if(t < 3) await msEspera(1500 * t);
+  }
+  toast('A etapa foi atualizada, mas o e-mail ao cliente não foi disparado ('+cortar(ultimo && ultimo.message, 80)+'). Avise o cliente por outro meio.');
+}
+
 /* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
