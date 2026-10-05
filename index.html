@@ -2083,7 +2083,7 @@ function renderLogin(){
   } else {
     corpo = '<div class="home-choices">'+
       '<button class="home-choice" onclick="PS.homeAbrirCliente()"><strong>Sou cliente</strong><span>Solicitar ou consultar um serviço societário</span></button>'+
-      '<button class="home-choice" id="home-btn-func" onclick="PS.entrarFuncionario()"><strong>Sou funcionário Lucralize</strong><span>Entrar com a conta Microsoft da Lucralize</span></button>'+
+      '<button class="home-choice" id="home-btn-func" onclick="PS.entrarFuncionario()"><strong>Sou funcionário</strong><span>Entrar com a conta da Lucralize</span></button>'+
     '</div>'+
     (homeMsg ? '<div class="home-msg">'+esc(homeMsg)+'</div>' : '');
   }
@@ -2091,7 +2091,7 @@ function renderLogin(){
     '<img class="home-logo" src="'+LOGO_DATA_URI+'" alt="Lucralize">'+
     '<p class="home-tag">Portal Societário</p>'+
     corpo+
-    '<div class="home-foot">Grupo Lucralize</div>'+
+    (homeCliente ? '<div class="home-foot">Grupo Lucralize</div>' : '')+      /* a página principal não leva rodapé; as telas do cliente continuam como estavam */
   '</div></div>';
 }
 function renderSemAcesso(){
