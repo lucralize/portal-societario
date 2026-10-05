@@ -931,6 +931,10 @@ var _xlBaseSig = {};      /* tabela -> {id: assinatura} da última leitura (evit
 var _xlCache = {};        /* tabela -> {t, rows}: cache curto para não reler a mesma tabela várias vezes no login */
 var _xlColsOk = {};       /* tabelas cujas colunas já foram conferidas */
 var _xlFila = Promise.resolve();
+/* anexos da equipe: até 4 MB vão em uma chamada só; acima disso, em partes (sessão de envio da Microsoft) */
+var UP_SIMPLES_MAX = 4000000;          /* o envio simples do Graph aceita no máximo 4 MB */
+var UP_PARTE = 5242880;                /* 5 MiB = 16 x 320 KiB (a Microsoft exige múltiplos de 320 KiB, menos na última parte) */
+var UP_MAX_BYTES = 100 * 1024 * 1024;  /* limite do portal por arquivo */
 var XL_CHUNK = 30000;     /* limite do Excel é 32.767 caracteres por célula */
 /* O Excel pode demorar alguns segundos para mostrar, a quem lê de fora da sessão de gravação, o que acabou de ser gravado.
    Para a tela não "voltar atrás" (item excluído que reaparece, status antigo), o portal lembra por alguns minutos o que ele
@@ -1000,6 +1004,32 @@ async function msSair(){
   }catch(e){
     console.warn('logout:', e);
     try{ if(_msal && _msal.clearCache) await _msal.clearCache(); }catch(e2){}
+  }
+}
+async function msUploadGrande(caminho, file){
+  var ses = await msGraph('POST', '/drives/' + SP.driveId + '/root:/' + msEncPath(caminho) + ':/createUploadSession', { item: { '@microsoft.graph.conflictBehavior': 'rename' } });
+  var url = ses && ses.uploadUrl;
+  if(!url) throw new Error('A Microsoft não abriu a sessão de envio.');
+  var total = file.size, ini = 0;
+  try{
+    while(ini < total){
+      var fim = Math.min(ini + UP_PARTE, total), parte = file.slice(ini, fim), ok = false, ultimo = null;
+      for(var t = 1; t <= 3 && !ok; t++){
+        var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 180000);
+        try{
+          /* a URL da sessão já vem autorizada: NÃO se envia o token aqui */
+          var r = await fetch(url, { method: 'PUT', headers: { 'Content-Range': 'bytes ' + ini + '-' + (fim - 1) + '/' + total }, body: parte, signal: ctl.signal });
+          if(r.status === 200 || r.status === 201 || r.status === 202) ok = true; else throw new Error('HTTP ' + r.status);
+        }catch(e){ ultimo = e; console.error('Envio em partes (tentativa ' + t + '):', e); if(t < 3) await msEspera(1500 * t); }
+        finally{ clearTimeout(tm); }
+      }
+      if(!ok) throw ultimo || new Error('Falha no envio.');
+      ini = fim;
+      if(typeof toast === 'function' && ini < total) toast('Enviando arquivo… ' + Math.round(ini * 100 / total) + '%');
+    }
+  }catch(e){
+    try{ await fetch(url, { method: 'DELETE' }); }catch(e2){}      /* cancela a sessão para não deixar arquivo pela metade */
+    throw e;
   }
 }
 function msEspera(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
@@ -1343,6 +1373,7 @@ var supa = {
   storage: { from: function(){ return {
     upload: async function(path, file){
       try{
+        if(file.size > UP_SIMPLES_MAX){ await msUploadGrande(SP.docsFolder + '/' + path, file); return { data: { path: path }, error: null }; }
         var buf = await file.arrayBuffer();
         await msGraphRaw('PUT', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + path) + ':/content', buf, file.type || 'application/octet-stream');
         return { data: { path: path }, error: null };
@@ -1400,6 +1431,12 @@ async function uploadArquivoReal(file, processoId, subpasta){
   if(!file) return null;
   if(!currentUser()) return registrarAnexoDoCliente(file, subpasta);   /* cliente: o arquivo sobe depois que o pedido receber o código */
   var path = processoId+'/'+subpasta+'/'+Date.now()+'-'+sanitizeFileName(file.name);
+  if(file.size > UP_MAX_BYTES){ var eg = new Error('O arquivo tem mais de 100 MB. Reduza o tamanho e tente de novo.'); eg.amigavel = true; throw eg; }
+  if(file.size > UP_SIMPLES_MAX){      /* arquivo grande: envio em partes, que já tem novas tentativas próprias */
+    var upG = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
+    if(upG.error) throw upG.error;
+    return {nome:file.name, path:path};
+  }
   return await comRetentativa(async function(){
     var up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
     if(up.error) throw up.error;
@@ -4593,7 +4630,7 @@ async function anexarDocPendente(processId, idx){
     }
   }catch(e){
     console.error(e);
-    toast('Não foi possível enviar o arquivo. Tente novamente.');
+    toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
   }
 }
 
@@ -4778,9 +4815,6 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
       '<div style="margin-top:.7rem; display:flex; flex-direction:column; gap:.6rem;">'+docsAndamentoHtml+'</div>'+
       (p.status!=='concluido' ? '<label class="btn btn-ghost btn-sm" style="margin-top:.8rem; display:inline-flex;" for="anexo-andamento-'+p.id+'">+ Anexar documento de andamento</label><input type="file" id="anexo-andamento-'+p.id+'" style="display:none;" onchange="PS.anexarDocumento(\''+p.id+'\',\'andamento\')">' : '')+
       '</div>' : '')+
-    '<div class="card" style="padding:1.2rem 1.3rem;"><span class="eyebrow">Documentos finais do processo</span><div style="margin-top:.9rem; display:flex; flex-direction:column; gap:.6rem;">'+docsFinaisHtml+'</div>'+
-      (adminMode ? '<label class="btn btn-ghost btn-sm" style="margin-top:.8rem; display:inline-flex;" for="anexo-finais-'+p.id+'">+ Anexar documento final</label><input type="file" id="anexo-finais-'+p.id+'" style="display:none;" onchange="PS.anexarDocumento(\''+p.id+'\',\'finais\')">' : '')+
-    '</div>'+
     (adminMode ? '' : (''+
       '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;">'+
         '<span class="eyebrow">Empresa</span>'+
@@ -5115,7 +5149,7 @@ async function anexarDocumento(id, categoria){
     }
   }catch(e){
     console.error(e);
-    toast('Não foi possível enviar o arquivo. Tente novamente.');
+    toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
   }
 }
 
@@ -5492,7 +5526,7 @@ async function confirmarIncluirProcessoManual(){
     arquivo = await fabArquivoReal('manual-formulario', id, 'andamento');
   }catch(e){
     console.error(e);
-    toast('Não foi possível enviar o arquivo. Tente novamente.');
+    toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
     return;
   }
 
@@ -6497,7 +6531,7 @@ function nomeCurtoSeguro(nome){
 /* chamado pelos formulários no lugar do envio real (cliente sem conta) */
 function registrarAnexoDoCliente(file, subpasta){
   var erro = validarAnexo(file);
-  if(erro) throw new Error(erro);
+  if(erro){ var ev = new Error(erro); ev.amigavel = true; throw ev; }
   var slug = String(subpasta || 'anexo').split('/').pop().replace(/[^a-zA-Z0-9-]+/g, '-').slice(0, 40) || 'anexo';
   var nomeArq = slug + '__' + Date.now() + '-' + (++_anexoSeq) + '-' + nomeCurtoSeguro(file.name);
   _anexos.push({nomeArq:nomeArq, nomeOriginal:file.name, file:file, estado:'aguardando', erro:''});
