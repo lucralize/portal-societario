@@ -406,6 +406,11 @@
   .cli-card .btn-primary{background:#0C7488; border-color:#0C7488; color:#fff;}   /* cor fixa da marca: bom contraste nos dois temas */
   .cli-card .btn-primary:hover{background:#095668; border-color:#095668;}
   .cli-card .btn-primary:disabled{opacity:.65; cursor:wait;}
+
+  /* ---------- pedidos de clientes (aba "Processos sem OS") ---------- */
+  .pill.status-solicitado{background:var(--warning-bg); color:var(--warning);}
+  .pill.status-recusado{background:var(--danger-bg); color:var(--danger);}
+  .nav-item .nav-badge{margin-left:auto; background:#F72642; color:#fff; border-radius:999px; font-size:.68rem; font-weight:700; min-width:20px; height:20px; padding:0 .45em; display:inline-flex; align-items:center; justify-content:center;}
 </style>
 </head>
 <body>
@@ -1353,6 +1358,7 @@ async function comRetentativa(fn, tentativas, delayMs){
 }
 async function uploadArquivoReal(file, processoId, subpasta){
   if(!file) return null;
+  if(!currentUser() && !ANEXOS_ATIVOS) return {nome:file.name, path:null, naoEnviado:true};   /* cliente: anexos ainda não implementados */
   var path = processoId+'/'+subpasta+'/'+Date.now()+'-'+sanitizeFileName(file.name);
   return await comRetentativa(async function(){
     var up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:false});
@@ -1435,6 +1441,7 @@ function rowParaExcluido(row){ var x = Object.assign({}, row.dados); x.id = row.
    por regras de segurança (RLS) próprias, então um erro de permissão em uma
    tabela (esperado para papéis sem acesso a ela) nunca interrompe as outras ---- */
 function sincronizarSupabase(){
+  if(!_xlUser) return;      /* só a equipe logada grava na planilha */
   var u = currentUser();
   if(state.processes && state.processes.length){
     supa.from('processos').upsert(state.processes.map(processoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar processos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
@@ -1788,6 +1795,7 @@ async function salvarProcessoNoServidor(processo, ehNovo){
   }
 }
 async function finalizarNovoProcesso(processo, toastLogado){
+  if(!currentUser()) return await enviarSolicitacaoPublica(processo);   /* cliente sem conta: vai pelo fluxo "Criar" */
   iniciarSemPagamento(processo);
   var u = currentUser();
   processo.ordemServico = await gerarOrdemServico();
@@ -1847,6 +1855,9 @@ function roleChipInfo(u){
   return {cls:'cliente', label:'Cliente'};
 }
 function processosVisiveis(){
+  return processosVisiveisBruto().filter(function(p){ return p.status!=='solicitado' && p.status!=='recusado'; });
+}
+function processosVisiveisBruto(){
   var u = currentUser();
   if(!u) return [];
   if(u.role==='admin') return state.processes;
@@ -1869,7 +1880,7 @@ function companyProcesses(companyId){
     .sort(compararOrdemSolicitacao);
 }
 function statusLabel(s){
-  return {aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente'}[s] || s || 'Status desconhecido';
+  return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito'}[s] || s || 'Status desconhecido';
 }
 function divisaoLabel(d){
   return {tech:'Lucralize Tech', contabilidade:'Lucralize Contabilidade'}[d] || null;
@@ -2004,7 +2015,7 @@ function seal(size, color){
    ========================================================= */
 function go(view){
   state.view = view; saveState(); render(); window.scrollTo(0,0);
-  var telasQueMerecemDadosFrescos = {'admin-processos':1,'admin-processo-detalhe':1,'cliente-processos':1,'cliente-processo-detalhe':1,'admin-overview':1};
+  var telasQueMerecemDadosFrescos = {'admin-solicitacoes':1,'admin-processos':1,'admin-processo-detalhe':1,'cliente-processos':1,'cliente-processo-detalhe':1,'admin-overview':1};
   if(view && (telasQueMerecemDadosFrescos[view.name] || (view.name==='link-publico' && view.etapa==='processo'))){
     atualizarDadosDoServidorSilenciosamente();
   }
@@ -2040,6 +2051,7 @@ function logout(){
   render();
 }
 async function boot(){
+  iniciarAvisoAnexos();
   if(state.view.name!=='carregando'){ render(); return; }
   try{
     var m = await msEnsure();
@@ -2339,6 +2351,7 @@ function linkPublicoShellWide(innerHtml, opts){
 function goLinkPublico(){ go({name:'link-publico', etapa:'divisao'}); }
 function linkPublicoSair(){
   state.visitante = null; state.visitanteTipo = null; state.visitanteFluxo = null;
+  homeCliente = false; clienteTela = 'menu'; consultaResultado = null;
   saveState(); go({name:'login'});
 }
 function renderLinkPublico(){
@@ -2347,122 +2360,15 @@ function renderLinkPublico(){
   if(etapa==='cnpj-status') return renderLinkPublicoDivisao();
   if(etapa==='opcoes') return renderLinkPublicoDivisao();
   if(etapa==='gate') return renderLinkPublicoGate();
-  if(etapa==='acompanhar') return renderLinkPublicoAcompanhar();
   if(etapa==='catalogo') return renderLinkPublicoCatalogo();
   if(etapa==='processo') return renderLinkPublicoProcesso(view.id);
-  if(etapa==='confirmacao') return renderLinkPublicoConfirmacao(view.ordemServico);
+  if(etapa==='confirmacao') return renderLinkPublicoConfirmacao(view.codigo);
   return renderLinkPublicoDivisao();
-}
-function renderLinkPublicoDivisao(){
-  return linkPublicoShell(''+
-    '<div>'+
-      '<h2 style="font-size:1.25rem;">Bem-vindo!</h2>'+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">O que você deseja fazer?</p>'+
-    '</div>'+
-    '<button class="card" style="padding:1.2rem 1.3rem; text-align:left; display:flex; flex-direction:column; gap:.3rem; cursor:pointer; border:1px solid var(--border);" onclick="PS.linkPublicoIniciarFluxo(\'abertura_transformacao\')">'+
-      '<strong style="font-size:1.02rem;">Abertura ou Transformação de CNPJ</strong>'+
-    '</button>'+
-    '<button class="card" style="padding:1.2rem 1.3rem; text-align:left; display:flex; flex-direction:column; gap:.3rem; cursor:pointer; border:1px solid var(--border);" onclick="PS.linkPublicoIniciarFluxo(\'outros\')">'+
-      '<strong style="font-size:1.02rem;">Outros Processos Societários</strong>'+
-    '</button>'+
-    '<button class="card" style="padding:1.2rem 1.3rem; text-align:left; display:flex; flex-direction:column; gap:.3rem; cursor:pointer; border:1px solid var(--border);" onclick="PS.go({name:\'link-publico\', etapa:\'acompanhar\'})">'+
-      '<strong style="font-size:1.02rem;">Acompanhar andamento do processo</strong>'+
-      '<span style="font-size:.82rem; color:var(--ink-soft);">Consulte o status usando o número da ordem de serviço.</span>'+
-    '</button>'
-  , {backOnclick:"PS.linkPublicoSair()", backLabel:'← Voltar para o login'});
 }
 function linkPublicoIniciarFluxo(fluxo){
   state.visitanteFluxo = fluxo;
   saveState();
   go({name:'link-publico', etapa:'gate'});
-}
-function renderLinkPublicoGate(){
-  var v = state.visitante || {};
-  return linkPublicoShell(''+
-    '<div>'+
-      '<h2 style="font-size:1.25rem;">Solicitar Serviço Societário</h2>'+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Antes de continuar, preencha seus dados de contato.</p>'+
-    '</div>'+
-    '<div id="lp-gate-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-    '<div class="field"><label>Nome completo <span class="req-mark">*</span></label><input type="text" id="lp-nome" value="'+esc(v.nome||'')+'" placeholder="Seu nome completo"></div>'+
-    '<div class="field"><label>Telefone de contato <span class="req-mark">*</span></label><input type="text" id="lp-telefone" value="'+esc(v.telefone||'')+'" placeholder="(31) 90000-0000" oninput="PS.maskTelefone(this)"></div>'+
-    '<div class="field"><label>E-mail <span class="req-mark">*</span></label><input type="email" id="lp-email" value="'+esc(v.email||'')+'" placeholder="seuemail@exemplo.com"></div>'+
-    '<button class="btn btn-primary btn-block" onclick="PS.linkPublicoSubmitGate()">Continuar</button>'
-  , {backOnclick:"PS.go({name:'link-publico', etapa:'divisao'})"});
-}
-function linkPublicoSubmitGate(){
-  var nomeEl = document.getElementById('lp-nome'), telEl = document.getElementById('lp-telefone'), emailEl = document.getElementById('lp-email');
-  var nome = (nomeEl.value||'').trim(), telefone = (telEl.value||'').trim(), email = (emailEl.value||'').trim();
-  var errBox = document.getElementById('lp-gate-erro');
-  if(!nome || !telefone || !email){
-    if(errBox){ errBox.textContent = 'Preencha nome completo, telefone e e-mail para continuar.'; errBox.style.display='block'; }
-    return;
-  }
-  if(errBox) errBox.style.display='none';
-  state.visitante = {nome:nome, telefone:telefone, email:email};
-  saveState();
-  go({name:'link-publico', etapa:'catalogo'});
-}
-function renderLinkPublicoAcompanhar(){
-  return linkPublicoShell(''+
-    '<div>'+
-      '<h2 style="font-size:1.25rem;">Acompanhar andamento</h2>'+
-      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Digite o número da ordem de serviço que você recebeu ao solicitar o processo.</p>'+
-    '</div>'+
-    '<div id="lp-acomp-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-    '<div class="field"><label>Número da ordem de serviço <span class="req-mark">*</span></label>'+
-      '<div style="display:flex; align-items:stretch;">'+
-        '<span class="mono" style="display:flex; align-items:center; padding:.65em .7em; border:1px solid var(--border); border-right:none; border-radius:var(--radius-s) 0 0 var(--radius-s); background:var(--surface-2); color:var(--ink-soft); font-weight:700;">OS-</span>'+
-        '<input type="text" id="lp-os-input" class="mono" style="border-radius:0 var(--radius-s) var(--radius-s) 0; flex:1; min-width:0;" placeholder="Ex.: 001/2026" onkeydown="if(event.key===\'Enter\'){PS.linkPublicoAcompanharBuscar();}">'+
-      '</div>'+
-    '</div>'+
-    '<button class="btn btn-primary btn-block" id="lp-buscar-btn" onclick="PS.linkPublicoAcompanharBuscar()">Buscar processo</button>'
-  , {backOnclick:"PS.go({name:'link-publico', etapa:'divisao'})"});
-}
-async function linkPublicoAcompanharBuscar(){
-  var input = document.getElementById('lp-os-input');
-  var digitado = (input.value||'').trim();
-  var errBox = document.getElementById('lp-acomp-erro');
-  var btn = document.getElementById('lp-buscar-btn');
-  if(!digitado){ if(errBox){ errBox.textContent='Digite o número da ordem de serviço.'; errBox.style.display='block'; } return; }
-  var raw = ('OS-'+digitado).toUpperCase();
-  var norm = normalizarOS(raw);
-
-  /* primeiro tenta localmente (processo que acabou de ser criado nesta mesma sessão) */
-  var p = state.processes.filter(function(x){ return normalizarOS(x.ordemServico)===norm; })[0];
-
-  if(!p){
-    /* busca no servidor — necessário para quem está acompanhando de outro dispositivo
-       ou depois de fechar o navegador, já que o número da OS é a própria credencial
-       de acompanhamento (sem usuário e senha) */
-    if(btn){ btn.disabled = true; btn.textContent = 'Buscando...'; }
-    try{
-      var res = await supa.rpc('buscar_processo_por_os', {os_numero: norm});
-      if(!res.error && res.data && res.data.length){
-        p = rowParaProcesso(res.data[0]);
-        var jaExiste = state.processes.some(function(x){ return x.id===p.id; });
-        if(!jaExiste) state.processes.push(p); else state.processes = state.processes.map(function(x){ return x.id===p.id ? p : x; });
-      } else if(res.error){
-        console.error('Erro ao buscar processo por OS:', res.error);
-        if(btn){ btn.disabled = false; btn.textContent = 'Buscar processo'; }
-        if(errBox){ errBox.textContent='Não foi possível buscar o processo agora. Verifique sua internet e tente novamente.'; errBox.style.display='block'; }
-        return;
-      }
-    }catch(e){
-      console.error('Erro ao buscar processo por OS:', e);
-      if(btn){ btn.disabled = false; btn.textContent = 'Buscar processo'; }
-      if(errBox){ errBox.textContent='Não foi possível buscar o processo agora. Verifique sua internet e tente novamente.'; errBox.style.display='block'; }
-      return;
-    }
-    if(btn){ btn.disabled = false; btn.textContent = 'Buscar processo'; }
-  }
-
-  if(!p){
-    if(errBox){ errBox.textContent='Nenhum processo encontrado com esse número de ordem de serviço. Confira e tente novamente.'; errBox.style.display='block'; }
-    return;
-  }
-  if(errBox) errBox.style.display='none';
-  go({name:'link-publico', etapa:'processo', id:p.id});
 }
 var TIPOS_SOCIETARIOS_PUBLICO = ['LTDA','Empresário Individual','Sociedade de Advocacia','S/A','Associação e ONG'];
 function renderLinkPublicoCatalogo(){
@@ -2509,21 +2415,6 @@ function renderLinkPublicoCatalogoAbertura(){
 function renderLinkPublicoProcesso(id){
   return linkPublicoShellWide(renderProcessoDetalhe(id, false, true), {});
 }
-function renderLinkPublicoConfirmacao(ordemServico){
-  var p = state.processes.filter(function(x){ return x.ordemServico===ordemServico; })[0];
-  var continuarOnclick = p ? ("PS.go({name:'link-publico', etapa:'processo', id:'"+p.id+"'})") : "PS.go({name:'link-publico', etapa:'acompanhar'})";
-  return linkPublicoShell(''+
-    '<div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:.7rem; padding:.4rem 0;">'+
-      '<div style="font-size:2.1rem;">✅</div>'+
-      '<h2 style="font-size:1.2rem;">Solicitação enviada com sucesso!</h2>'+
-      '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Guarde o número da sua ordem de serviço — é através dele que você poderá acompanhar o andamento do processo, sem precisar de usuário e senha.</p>'+
-      '<div class="card mono" style="padding:.85rem 1.3rem; font-size:1.25rem; font-weight:700; color:var(--primary); letter-spacing:.03em; border:1px solid var(--border);">'+esc(ordemServico||'')+'</div>'+
-    '</div>'+
-    '<button class="btn btn-primary btn-block" onclick="'+continuarOnclick+'">Acompanhar este processo agora</button>'+
-    '<button class="btn btn-ghost btn-block" onclick="PS.linkPublicoSair()">Voltar para o início</button>'
-  , {});
-}
-
 /* ---------- SHELL (sidebar + topbar + content) ---------- */
 function renderShell(u){
   var admin = u.role==='admin' || u.role==='colaborador' || u.role==='freelancer';
@@ -2536,6 +2427,7 @@ function renderShell(u){
       {k:'admin-processos', ic:'≣', label:'Processos'},
       {k:'admin-catalogo', ic:'▤', label:'Catálogo de serviços'}
     ];
+    if(u.role==='admin') items.splice(2, 0, {k:'admin-solicitacoes', ic:'✉', label:'Processos sem OS', badge:contarSolicitacoes()});
     items.push({k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'});
     if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
   } else {
@@ -2552,15 +2444,16 @@ function renderShell(u){
   if(u.role==='colaborador' && state.view.name==='admin-usuarios'){
     state.view = {name:'admin-processos'};
   }
+  if(u.role!=='admin' && state.view.name==='admin-solicitacoes'){ state.view = {name:'admin-processos'}; }
   var navHtml = items.map(function(it){
     var active = state.view.name===it.k;
-    return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+it.k+'\'})"><span class="ic">'+it.ic+'</span>'+it.label+'</button>';
+    return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+it.k+'\'})"><span class="ic">'+it.ic+'</span>'+it.label+(it.badge ? '<span class="nav-badge">'+it.badge+'</span>' : '')+'</button>';
   }).join('');
 
   var company = admin ? null : getCompany(u.empresaId);
   var pageTitle = {
     'admin-overview':'Visão geral', 'admin-processos':'Todos os processos', 'admin-catalogo':'Catálogo de serviços',
-    'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'cliente-processos':'Meus processos', 'cliente-catalogo':'Solicitar serviço',
+    'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS', 'cliente-processos':'Meus processos', 'cliente-catalogo':'Solicitar serviço',
     'cliente-processo-detalhe':'Detalhe do processo', 'admin-processo-detalhe':'Detalhe do processo'
   }[state.view.name] || '';
   var crumb = admin ? 'Painel Lucralize' : (company ? company.nome : '');
@@ -2571,6 +2464,7 @@ function renderShell(u){
   else if(state.view.name==='admin-catalogo') body = renderCatalogo(null, true);
   else if(state.view.name==='admin-usuarios') body = renderAdminUsuarios();
   else if(state.view.name==='admin-excluidos') body = renderAdminExcluidos();
+  else if(state.view.name==='admin-solicitacoes') body = renderAdminSolicitacoes();
   else if(state.view.name==='admin-processo-detalhe') body = renderProcessoDetalhe(state.view.id, true, false);
   else if(state.view.name==='cliente-processos') body = renderClienteProcessos(u);
   else if(state.view.name==='cliente-catalogo') body = renderCatalogo(company, false);
@@ -4766,6 +4660,7 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
       (!ehFreelancer ? '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button>' : '')+
     '</div>';
   }
+  if(adminMode && (p.status==='solicitado' || p.status==='recusado')) adminActions = acoesSolicitacao(p);
 
   var responsavelInline = '';
   if(adminMode){
@@ -4806,13 +4701,14 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
       '<div class="info-block"><span class="lbl">Razão social</span><span class="val">'+esc(company.nome)+'</span></div>'+
       '<div class="info-block"><span class="lbl">CNPJ</span><span class="val mono">'+esc(company.cnpj)+'</span></div>'
     ) : (''+
-      '<div class="info-block"><span class="lbl">Solicitante</span><span class="val">'+esc(nomeQuem)+'</span></div>'+
+      blocoEmpresaSolicitada(p)+
+      '<div class="info-block"><span class="lbl">Solicitante</span><span class="val">'+esc((p.visitante && p.visitante.nome) || nomeQuem)+'</span></div>'+
       (!ehFreelancer && p.visitante && p.visitante.telefone ? '<div class="info-block"><span class="lbl">Telefone</span><span class="val">'+esc(p.visitante.telefone)+'</span></div>' : '')+
       (!ehFreelancer && p.visitante && p.visitante.email ? '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+esc(p.visitante.email)+'</span></div>' : '')+
       '<div class="info-block"><span class="lbl">Origem</span><span class="val" style="color:var(--ink-faint); font-style:italic; font-weight:500;">Solicitado pelo link público (sem login)</span></div>'
     ));
 
-  var backOnclick = adminMode ? "PS.go({name:'admin-processos'})"
+  var backOnclick = adminMode ? ((p.status==='solicitado' || p.status==='recusado') ? "PS.go({name:'admin-solicitacoes'})" : "PS.go({name:'admin-processos'})")
     : (publicMode ? "PS.go({name:'link-publico', etapa:'acompanhar'})" : "PS.go({name:'cliente-processos'})");
   var podeDesistir = !adminMode && p.status!=='concluido' && p.status!=='cancelado';
 
@@ -6044,13 +5940,19 @@ function copiarCodigo(codigo){
 /* endereços dos fluxos do Power Automate (gatilho HTTP) — colar aqui depois de criar cada fluxo */
 var CLIENTE_API = {
   consultar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/07/workflows/ed3891a749d6410f97a18ddb50980b7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=zFPO-mfx4JYinr-ItKroFerz1Y3J4VZ4AYjKG3_ukmc',
-  criar: ''     /* fluxo "Criar" — próxima etapa */
+  criar: 'https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/26/workflows/fd3fd9690e494a788915c8ad9df6a8c5/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=09e80T4_yD5R1x4Jozu2pZXWrdE-NE2Z8eH4zxMYtmQ'
 };
 
 /* ---------- versão pública do processo (gravada na coluna Publico) ---------- */
 /* mesma lista de etapas que a equipe vê no detalhe do processo (fonte única) */
 function passosParaCliente(p){
   var s = SERVICE_MAP[p.servicoId];
+  if(p.status === 'recusado') return [];
+  if(p.status === 'solicitado'){      /* pedido do cliente ainda em análise pela equipe: nenhuma etapa do serviço começou */
+    var ini = [{label:'Solicitação recebida — em análise pela equipe', state:'atual'}];
+    if(!servicoSemPagamento(p.servicoId)) ini.push({label:'Pagamento confirmado', state:'pendente'});
+    return ini.concat(s ? etapasDoProcesso(p).map(function(e){ return {label:e, state:'pendente'}; }) : []);
+  }
   var steps = s ? stepStates(p, s) : [];
   return (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
 }
@@ -6059,7 +5961,8 @@ function publicoDoProcesso(p){
   return {
     v: 1,
     servico: s ? s.nome : '',
-    empresa: emp ? emp.nome : '',
+    empresa: emp ? emp.nome : ((p.empresaSolicitada && p.empresaSolicitada.nome) || ''),
+    motivo: p.status === 'recusado' ? String(p.motivoRecusa || '').slice(0, 300) : undefined,
     status: p.status || '',
     criadoEm: p.criadoEm || '',
     passos: passosParaCliente(p).map(function(x){ return {t:x.label, s:x.state}; })
@@ -6103,7 +6006,19 @@ function renderConsultaResultado(){
       '<div class="step-body"><div class="title">'+esc(st.t)+'</div>'+(estado === 'atual' ? '<div class="when">Em andamento agora</div>' : '')+'</div>'+
     '</div>';
   }).join('');
-  var statusOk = ['aguardando_pagamento','em_andamento','concluido','cancelado'].indexOf(r.status) !== -1;
+  var statusOk = ['solicitado','aguardando_pagamento','em_andamento','concluido','cancelado','recusado'].indexOf(r.status) !== -1;
+  if(r.status === 'recusado'){
+    return '<div class="cli-card">'+
+      '<div><span class="cli-eyebrow">Seu pedido</span><h2 style="margin-top:.2rem;">'+esc(r.servico || 'Serviço')+'</h2>'+
+        (r.empresa ? '<div class="cli-sub">'+esc(r.empresa)+'</div>' : '')+'</div>'+
+      '<div class="cli-meta"><span class="pill status-recusado"><span class="pill-dot"></span>Pedido não aceito</span>'+
+        (r.criadoEm ? '<span class="cli-sub">Solicitado em '+esc(fmtDate(r.criadoEm))+'</span>' : '')+'</div>'+
+      '<div class="cli-aviso" style="background:var(--danger-bg); border-color:var(--danger);">'+
+        (r.motivo ? '<strong>Motivo:</strong> '+esc(r.motivo)+'<br>' : '')+'Entre em contato com a Lucralize para ajustarmos o seu pedido.</div>'+
+      '<button class="btn btn-primary btn-block" onclick="PS.clienteNovaConsulta()">Consultar outro código</button>'+
+      '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.clienteVoltar()">← Voltar</button>'+
+    '</div>';
+  }
   return '<div class="cli-card">'+
     '<div><span class="cli-eyebrow">Seu processo</span><h2 style="margin-top:.2rem;">'+esc(r.servico || 'Serviço')+'</h2>'+
       (r.empresa ? '<div class="cli-sub">'+esc(r.empresa)+'</div>' : '')+'</div>'+
@@ -6117,7 +6032,10 @@ function renderConsultaResultado(){
 }
 
 /* ---------- ações ---------- */
-function clienteIr(tela){ clienteTela = tela; consultaResultado = null; render(); }
+function clienteIr(tela){
+  if(tela === 'solicitar'){ iniciarSolicitacao(); return; }
+  clienteTela = tela; consultaResultado = null; render();
+}
 function clienteVoltar(){
   if(clienteTela === 'menu'){ homeVoltar(); return; }
   clienteTela = 'menu'; consultaResultado = null; consultaCodigo = ''; render();
@@ -6161,6 +6079,338 @@ async function clienteConsultar(){
 }
 
 /* =========================================================
+   SOLICITAÇÃO PELO CLIENTE (sem conta) + ANÁLISE PELA EQUIPE
+   O cliente envia o pedido pelo fluxo "Criar" (Power Automate), que grava uma linha em
+   Processos com status "solicitado", sem OS e sem empresa. A equipe vê esses pedidos na aba
+   "Processos sem OS" e decide: aprovar (gera a OS e cadastra/reaproveita a empresa) ou recusar.
+   ========================================================= */
+var ANEXOS_ATIVOS = false;     /* etapa de anexos do cliente: ainda não implementada (os arquivos não são enviados) */
+var AVISO_PRIVACIDADE = 'Os dados e documentos que você informar serão usados pela Lucralize apenas para analisar e executar o serviço solicitado. Ficam armazenados com acesso restrito à equipe e só serão compartilhados com órgãos públicos quando isso for necessário para realizar o serviço. Para pedir informações ou a exclusão dos seus dados, fale com a Lucralize.';
+
+function cnpjValido(v){
+  var d = String(v || '').replace(/\D/g, '');
+  if(d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  function dv(base, pesos){ var soma = 0; for(var i = 0; i < pesos.length; i++) soma += parseInt(base.charAt(i), 10) * pesos[i]; var r = soma % 11; return r < 2 ? 0 : 11 - r; }
+  var d1 = dv(d, [5,4,3,2,9,8,7,6,5,4,3,2]);
+  var d2 = dv(d.slice(0, 12) + d1, [6,5,4,3,2,9,8,7,6,5,4,3,2]);
+  return d1 === parseInt(d.charAt(12), 10) && d2 === parseInt(d.charAt(13), 10);
+}
+function formatarCnpj(d){ d = String(d || '').replace(/\D/g, ''); return d.length === 14 ? d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : d; }
+
+/* ---------- lado do cliente: telas ---------- */
+function iniciarSolicitacao(){
+  state.visitante = null; state.visitanteTipo = null; state.visitanteFluxo = null;
+  go({name:'link-publico', etapa:'divisao'});
+}
+function clienteVoltarMenu(){
+  state.visitante = null; state.visitanteTipo = null; state.visitanteFluxo = null;
+  homeCliente = true; clienteTela = 'menu'; consultaResultado = null;
+  go({name:'login'});
+}
+function renderLinkPublicoDivisao(){
+  return linkPublicoShell(''+
+    '<div>'+
+      '<h2 style="font-size:1.25rem;">Solicitar serviço</h2>'+
+      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Qual serviço você precisa?</p>'+
+    '</div>'+
+    '<button class="card" style="padding:1.2rem 1.3rem; text-align:left; display:flex; flex-direction:column; gap:.3rem; cursor:pointer; border:1px solid var(--border);" onclick="PS.linkPublicoIniciarFluxo(\'abertura_transformacao\')">'+
+      '<strong style="font-size:1.02rem;">Abertura ou Transformação de CNPJ</strong>'+
+    '</button>'+
+    '<button class="card" style="padding:1.2rem 1.3rem; text-align:left; display:flex; flex-direction:column; gap:.3rem; cursor:pointer; border:1px solid var(--border);" onclick="PS.linkPublicoIniciarFluxo(\'outros\')">'+
+      '<strong style="font-size:1.02rem;">Outros Processos Societários</strong>'+
+    '</button>'
+  , {backOnclick:"PS.clienteVoltarMenu()", backLabel:'← Voltar'});
+}
+function renderLinkPublicoGate(){
+  var v = state.visitante || {};
+  var outros = state.visitanteFluxo === 'outros';
+  var camposEmpresa = outros ? (''+
+    '<div class="field"><label>Razão social da empresa <span class="req-mark">*</span></label><input type="text" id="lp-empresa" value="'+esc(v.empresaNome||'')+'" placeholder="Nome da empresa"></div>'+
+    '<div class="field"><label>CNPJ da empresa <span class="req-mark">*</span></label><input type="text" id="lp-cnpj" value="'+esc(v.empresaCnpj||'')+'" placeholder="00.000.000/0001-00" oninput="PS.maskCnpj(this)"></div>') : '';
+  return linkPublicoShell(''+
+    '<div>'+
+      '<h2 style="font-size:1.25rem;">Solicitar Serviço Societário</h2>'+
+      '<p style="color:var(--ink-soft); font-size:.88rem; margin-top:.35rem; line-height:1.5;">Antes de continuar, preencha seus dados de contato.</p>'+
+    '</div>'+
+    '<div id="lp-gate-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
+    '<div class="field"><label>Nome completo <span class="req-mark">*</span></label><input type="text" id="lp-nome" value="'+esc(v.nome||'')+'" placeholder="Seu nome completo"></div>'+
+    '<div class="field"><label>Telefone de contato <span class="req-mark">*</span></label><input type="text" id="lp-telefone" value="'+esc(v.telefone||'')+'" placeholder="(31) 90000-0000" oninput="PS.maskTelefone(this)"></div>'+
+    '<div class="field"><label>E-mail <span class="req-mark">*</span></label><input type="email" id="lp-email" value="'+esc(v.email||'')+'" placeholder="seuemail@exemplo.com"></div>'+
+    camposEmpresa+
+    '<div aria-hidden="true" style="position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;"><label>Não preencha este campo<input type="text" id="lp-website" tabindex="-1" autocomplete="off"></label></div>'+
+    '<div class="obs-note" style="font-size:.78rem; line-height:1.5; color:var(--ink-soft);"><strong style="color:var(--ink);">Aviso de privacidade.</strong> '+esc(AVISO_PRIVACIDADE)+'</div>'+
+    '<label style="display:flex; gap:.55rem; align-items:flex-start; font-size:.85rem; cursor:pointer;"><input type="checkbox" id="lp-aceite"'+(v.aceite?' checked':'')+' style="margin-top:.2rem;"><span>Li e concordo com o tratamento dos meus dados conforme o aviso acima. <span class="req-mark">*</span></span></label>'+
+    '<button class="btn btn-primary btn-block" onclick="PS.linkPublicoSubmitGate()">Continuar</button>'
+  , {backOnclick:"PS.go({name:'link-publico', etapa:'divisao'})"});
+}
+function linkPublicoSubmitGate(){
+  var val = function(id){ var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
+  var nome = val('lp-nome'), telefone = val('lp-telefone'), email = val('lp-email');
+  var outros = state.visitanteFluxo === 'outros';
+  var empresaNome = outros ? val('lp-empresa') : '', empresaCnpj = outros ? val('lp-cnpj') : '';
+  var aceite = !!(document.getElementById('lp-aceite') || {}).checked;
+  var errBox = document.getElementById('lp-gate-erro');
+  function erro(msg){ if(errBox){ errBox.textContent = msg; errBox.style.display = 'block'; } }
+  if(!nome || !telefone || !email){ erro('Preencha nome completo, telefone e e-mail para continuar.'); return; }
+  if(email.indexOf('@') === -1 || email.indexOf('.') === -1){ erro('Confira o e-mail informado.'); return; }
+  if(outros && !empresaNome){ erro('Informe a razão social da empresa.'); return; }
+  if(outros && !cnpjValido(empresaCnpj)){ erro('Confira o CNPJ informado: ele precisa ter 14 números válidos.'); return; }
+  if(!aceite){ erro('Para continuar, é preciso concordar com o aviso de privacidade.'); return; }
+  if(errBox) errBox.style.display = 'none';
+  state.visitante = {nome:nome, telefone:telefone, email:email, empresaNome:empresaNome, empresaCnpj:empresaCnpj, aceite:true, website: val('lp-website')};
+  saveState();
+  go({name:'link-publico', etapa:'catalogo'});
+}
+function renderLinkPublicoConfirmacao(codigo){
+  return linkPublicoShell(''+
+    '<div style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:.7rem; padding:.4rem 0;">'+
+      '<div style="font-size:2.1rem;">✅</div>'+
+      '<h2 style="font-size:1.2rem;">Solicitação enviada!</h2>'+
+      '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Recebemos o seu pedido. A equipe da Lucralize vai analisá-lo e entrar em contato.</p>'+
+      '<div class="card mono" style="padding:.85rem 1.3rem; font-size:1.25rem; font-weight:700; color:var(--primary); letter-spacing:.06em; border:1px solid var(--border);">'+esc(codigo||'')+'</div>'+
+      '<button class="btn btn-ghost btn-sm" onclick="PS.copiarCodigo(\''+esc(codigo||'')+'\')">Copiar código</button>'+
+    '</div>'+
+    '<div class="obs-note" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink); line-height:1.5;"><strong>Anote este código agora.</strong> Ele é a única forma de consultar o andamento do seu pedido, sem usuário e senha. Se perder o código, entre em contato com a Lucralize informando o nome da empresa.</div>'+
+    '<button class="btn btn-primary btn-block" onclick="PS.clienteConsultarAgora(\''+esc(codigo||'')+'\')">Consultar este pedido agora</button>'+
+    '<button class="btn btn-ghost btn-block" onclick="PS.linkPublicoSair()">Voltar para o início</button>'
+  , {});
+}
+function clienteConsultarAgora(codigo){
+  homeCliente = true; clienteTela = 'consultar'; consultaResultado = null; consultaCodigo = codigo || '';
+  state.view = {name:'login'}; render();
+  setTimeout(function(){ if(document.getElementById('cli-codigo')) clienteConsultar(); }, 60);
+}
+
+/* aviso enquanto os anexos do cliente não são enviados de verdade */
+var _avisoAnexosIniciado = false;
+function iniciarAvisoAnexos(){
+  if(_avisoAnexosIniciado || typeof MutationObserver === 'undefined') return;
+  _avisoAnexosIniciado = true;
+  new MutationObserver(function(muts){
+    if(ANEXOS_ATIVOS || currentUser()) return;
+    muts.forEach(function(m){ [].forEach.call(m.addedNodes, function(n){
+      if(n.nodeType !== 1 || !n.querySelector) return;
+      var pb = (n.classList && n.classList.contains('panel-body')) ? n : n.querySelector('.panel-body');
+      if(pb && !pb.querySelector('.aviso-anexos')){
+        pb.insertAdjacentHTML('afterbegin', '<div class="obs-note aviso-anexos" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink); font-size:.82rem; line-height:1.5;"><strong>Fase de testes:</strong> os arquivos anexados ainda não são enviados à equipe; só os nomes ficam registrados.</div>');
+      }
+    }); });
+  }).observe(document.body, {childList:true, subtree:true});
+}
+
+/* ---------- lado do cliente: envio ao fluxo "Criar" ---------- */
+var NATUREZA_TIPO = {LTDA:'LTDA', EI:'Empresário Individual', SA:'S/A'};
+function dadosEmpresaDoPedido(processo){
+  var v = state.visitante || {}, fa = processo.formularioAbertura || null;
+  var nome = v.empresaNome || '', cnpj = v.empresaCnpj || '', tipo = state.visitanteTipo || '';
+  if(fa && processo.servicoId === 'transformacao-mei-me'){ nome = fa.razaoSocialAtual || nome; cnpj = fa.cnpjAtual || cnpj; tipo = NATUREZA_TIPO[fa.naturezaJuridica] || tipo; }
+  else if(fa){ nome = fa.razaoSocial1 || nome; cnpj = ''; tipo = NATUREZA_TIPO[fa.naturezaJuridica] || tipo; }
+  return {nome: nome || v.nome || '', cnpj: cnpj, tipo: tipo};
+}
+async function enviarSolicitacaoPublica(processo){
+  var v = state.visitante || {};
+  if(!v.aceite){ toast('Para enviar, é preciso concordar com o aviso de privacidade.'); return false; }
+  if(!CLIENTE_API.criar){ toast('O envio de solicitações ainda não está disponível.'); return false; }
+  var s = SERVICE_MAP[processo.servicoId];
+  processo.status = 'solicitado'; processo.etapaAtual = -1; processo.ordemServico = '';
+  processo.divisao = state.visitanteFluxo === 'abertura_transformacao' ? 'tech' : 'contabilidade';
+  processo.empresaId = null;
+  processo.visitante = {nome:v.nome, telefone:v.telefone, email:v.email};
+  processo.solicitanteContato = {telefone:v.telefone || '', email:v.email || ''};
+  processo.empresaSolicitada = dadosEmpresaDoPedido(processo);
+  processo.historico = [{data:todayISO(), hora:nowHM(), texto:'Solicitação de '+(s ? s.nome : 'serviço')+' enviada pelo cliente pelo portal. Aguardando análise da equipe Lucralize.', autor:'cliente'}];
+  var corpo = {
+    acao:'criar', website:v.website || '', aceite:true,
+    servicoId:processo.servicoId, divisao:processo.divisao, status:'solicitado',
+    empresaNome:processo.empresaSolicitada.nome, empresaCnpj:processo.empresaSolicitada.cnpj,
+    processoJson:JSON.stringify(processo), publicoJson:JSON.stringify(publicoDoProcesso(processo))
+  };
+  if(corpo.processoJson.length > 29000){ toast('O formulário ficou grande demais para enviar. Reduza os textos livres e tente de novo.'); return false; }
+  var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 40000);
+  try{
+    var resp = await fetch(CLIENTE_API.criar, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo), signal:ctl.signal, cache:'no-store'});
+    if(!resp.ok){ var tx = ''; try{ tx = (await resp.text()).slice(0, 400); }catch(e2){} throw new Error('HTTP '+resp.status+' '+tx); }
+    var j = await resp.json();
+    if(j && j.ok === true && /^[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}$/.test(String(j.codigo || ''))){
+      closePanel();
+      go({name:'link-publico', etapa:'confirmacao', codigo:j.codigo});
+      return true;
+    }
+    console.warn('Resposta do fluxo Criar:', j);
+    toast(j && j.erro === 'pedido_invalido' ? 'Alguns dados do pedido não foram aceitos. Confira o formulário e tente novamente.' : 'Não foi possível registrar o seu pedido agora. Tente novamente em instantes.');
+    return false;
+  }catch(e){
+    console.error('Envio da solicitação:', e);
+    toast(e && e.name === 'AbortError' ? 'O envio demorou demais. Tente novamente.' : 'Não foi possível enviar o seu pedido. Verifique a internet e tente novamente.');
+    return false;
+  }finally{
+    clearTimeout(tm);
+  }
+}
+
+/* ---------- equipe: aba "Processos sem OS" ---------- */
+function chaveEnvio(p){ var h = (p.historico && p.historico[0]) || {}; return (h.data || p.criadoEm || '') + ' ' + (h.hora || ''); }
+function solicitacoesPendentes(){ return state.processes.filter(function(p){ return p.status === 'solicitado'; }).sort(function(a, b){ return chaveEnvio(a).localeCompare(chaveEnvio(b)); }); }
+function solicitacoesRecusadas(){ return state.processes.filter(function(p){ return p.status === 'recusado'; }).sort(function(a, b){ return String(b.recusadoEm || '').localeCompare(String(a.recusadoEm || '')); }); }
+function contarSolicitacoes(){ var u = currentUser(); return (u && u.role === 'admin') ? solicitacoesPendentes().length : 0; }
+function nomeEmpresaDoPedido(p){ return (p.empresaSolicitada && p.empresaSolicitada.nome) || nomeParaProcesso(p); }
+function enviadoEm(p){ var h = (p.historico && p.historico[0]) || {}; return fmtDate(h.data || p.criadoEm) + (h.hora ? ' '+h.hora : ''); }
+function renderAdminSolicitacoes(){
+  var pend = solicitacoesPendentes(), rec = solicitacoesRecusadas();
+  function linha(p, extra){
+    var s = SERVICE_MAP[p.servicoId] || {nome:'Serviço não identificado'}, es = p.empresaSolicitada || {};
+    return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+p.id+'\'})">'+
+      '<td><strong>'+esc(nomeEmpresaDoPedido(p))+'</strong><div class="mono" style="font-size:.72rem; color:var(--ink-faint);">'+esc(es.cnpj || '')+'</div></td>'+
+      '<td>'+esc(s.nome)+'</td>'+
+      '<td>'+esc((p.visitante && p.visitante.nome) || '—')+'<div class="mono" style="font-size:.72rem; color:var(--ink-faint);">'+esc((p.visitante && p.visitante.telefone) || '')+'</div></td>'+
+      '<td class="mono">'+esc(extra(p))+'</td>'+
+      '<td style="text-align:right; white-space:nowrap;"><span class="btn btn-ghost btn-sm">Abrir →</span></td>'+
+    '</tr>';
+  }
+  var tabela = function(cab, linhas, vazio){
+    return '<div class="card u-scroll-x"><table><thead><tr><th>Empresa</th><th>Serviço</th><th>Solicitante</th><th>'+cab+'</th><th></th></tr></thead><tbody>'+(linhas || '<tr><td colspan="5" style="text-align:center; color:var(--ink-faint); padding:1.6rem 0;">'+vazio+'</td></tr>')+'</tbody></table></div>';
+  };
+  return '<div class="section-title"><h3>Processos sem OS</h3></div>'+
+    '<p style="font-size:.84rem; color:var(--ink-soft); margin:-.2rem 0 .9rem;">Pedidos enviados por clientes pelo portal, aguardando análise. Ao aprovar, o sistema gera a OS e cadastra (ou reaproveita) a empresa.</p>'+
+    tabela('Enviado em', pend.map(function(p){ return linha(p, enviadoEm); }).join(''), 'Nenhum pedido aguardando análise.')+
+    (rec.length ? '<div class="section-title" style="margin-top:1.6rem;"><h3 style="font-size:1rem;">Pedidos recusados</h3></div>'+tabela('Motivo', rec.map(function(p){ return linha(p, function(x){ return (x.motivoRecusa || '').slice(0, 60); }); }).join(''), '') : '');
+}
+function blocoEmpresaSolicitada(p){
+  var es = p.empresaSolicitada; if(!es) return '';
+  return '<div class="info-block"><span class="lbl">Razão social informada</span><span class="val">'+esc(es.nome || '—')+'</span></div>'+
+    (es.cnpj ? '<div class="info-block"><span class="lbl">CNPJ informado</span><span class="val mono">'+esc(es.cnpj)+'</span></div>' : '')+
+    (es.tipo ? '<div class="info-block"><span class="lbl">Tipo societário</span><span class="val">'+esc(es.tipo)+'</span></div>' : '');
+}
+function acoesSolicitacao(p){
+  var cab = '<div class="card" style="padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.7rem;">';
+  if(p.status === 'recusado'){
+    return cab+'<span class="eyebrow">Pedido recusado</span>'+
+      '<div class="pill status-recusado" style="align-self:flex-start;">Recusado'+(p.recusadoPor ? ' por '+esc(p.recusadoPor) : '')+'</div>'+
+      '<p style="font-size:.84rem; color:var(--ink-soft); line-height:1.5;"><strong>Motivo mostrado ao cliente:</strong> '+esc(p.motivoRecusa || '—')+'</p>'+
+      '<button class="btn btn-ghost btn-block" onclick="PS.reabrirSolicitacao(\''+p.id+'\')">↺ Reabrir para análise</button>'+
+      '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button></div>';
+  }
+  return cab+'<span class="eyebrow">Análise do pedido</span>'+
+    '<p style="font-size:.84rem; color:var(--ink-soft); line-height:1.5;">Pedido enviado pelo cliente, ainda sem número de OS. Ao aprovar, o sistema gera a OS e cadastra ou reaproveita a empresa pelo CNPJ.</p>'+
+    '<button class="btn btn-primary btn-block" id="btn-aprovar" onclick="PS.aprovarSolicitacao(\''+p.id+'\')">Aprovar e gerar OS</button>'+
+    '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalRecusar(\''+p.id+'\')">Recusar pedido</button>'+
+    '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button></div>';
+}
+
+/* ---------- equipe: aprovar, recusar, reabrir ---------- */
+async function solicitacaoFresca(id, statusEsperado){
+  var rows = await xlSelect('processos', true);
+  var linha = rows.filter(function(r){ return r.id === id; })[0];
+  if(!linha) return {sumiu:true};
+  var fresco = rowParaProcesso(linha);
+  state.processes = state.processes.map(function(x){ return x.id === id ? fresco : x; });
+  if(fresco.status !== statusEsperado) return {outroStatus:true, p:fresco};
+  return {p:fresco};
+}
+async function gerarOSEstrita(){
+  var r = await supa.rpc('gerar_ordem_servico');
+  if(r.error || !r.data) throw new Error((r.error && r.error.message) || 'Não foi possível gerar a OS.');
+  return r.data;
+}
+async function aprovarSolicitacao(id){
+  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var btn = document.getElementById('btn-aprovar'); if(btn){ btn.disabled = true; btn.textContent = 'Aprovando…'; }
+  function reabilita(){ if(btn){ btn.disabled = false; btn.textContent = 'Aprovar e gerar OS'; } }
+  var snap = null, criouEmpresa = false, empresa = null, p = null;
+  try{
+    var f = await solicitacaoFresca(id, 'solicitado');
+    if(f.sumiu || f.outroStatus){ toast('Este pedido já foi tratado por outra pessoa ou não existe mais.'); render(); return; }
+    p = f.p; snap = JSON.parse(JSON.stringify(p));
+    var es = p.empresaSolicitada || {}, digitos = String(es.cnpj || '').replace(/\D/g, '');
+    empresa = digitos.length === 14 ? state.companies.filter(function(c){ return String(c.cnpj || '').replace(/\D/g, '') === digitos; })[0] : null;
+    if(!empresa){
+      empresa = {id:'c'+Date.now(), nome:es.nome || nomeParaProcesso(p), cnpj:digitos.length === 14 ? formatarCnpj(digitos) : '—', tipo:es.tipo || 'LTDA', divisao:p.divisao || 'contabilidade'};
+      var ins = await supa.from('empresas').insert(empresaParaRow(empresa));
+      if(ins.error) throw new Error('Não foi possível cadastrar a empresa: '+ins.error.message);
+      state.companies.push(empresa); criouEmpresa = true;
+    }
+    var os = await gerarOSEstrita();
+    p.empresaId = empresa.id; p.ordemServico = os; p.status = 'aguardando_pagamento'; p.etapaAtual = -1;
+    iniciarSemPagamento(p);
+    p.aprovadoEm = todayISO()+' '+nowHM(); p.aprovadoPor = nomeAutorAtual();
+    p.historico.push({data:todayISO(), hora:nowHM(), texto:'Pedido aprovado pela equipe Lucralize. Ordem de serviço gerada: '+os+'.'+(criouEmpresa ? '' : ' Empresa já cadastrada reaproveitada pelo CNPJ.'), autor:nomeAutorAtual()});
+    var ok = await salvarProcessoNoServidor(p);
+    if(!ok) throw new Error('Não foi possível gravar a aprovação na planilha.');
+    state.processes = state.processes.map(function(x){ return x.id === id ? p : x; });
+    saveState();
+    toast('Pedido aprovado — '+os+'.');
+    go({name:'admin-processo-detalhe', id:id});
+  }catch(e){
+    console.error('Aprovar pedido:', e);
+    if(snap){ state.processes = state.processes.map(function(x){ return x.id === id ? snap : x; }); }
+    reabilita(); render();
+    toast((e && e.message) || 'Não foi possível aprovar o pedido. Tente novamente.');
+  }
+}
+function abrirModalRecusar(id){
+  var p = state.processes.filter(function(x){ return x.id === id; })[0]; if(!p) return;
+  var html = ''+
+  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
+    '<div class="modal-box">'+
+      '<div class="panel-head"><h3 style="font-size:1.05rem;">Recusar pedido</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
+      '<div class="panel-body">'+
+        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Pedido de <strong style="color:var(--ink);">'+esc(nomeEmpresaDoPedido(p))+'</strong>. A OS não será gerada.</p>'+
+        '<div id="recusa-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
+        '<div class="field"><label>Motivo da recusa <span class="req-mark">*</span></label><textarea id="recusa-motivo" rows="4" maxlength="300" placeholder="Ex.: Pedido em duplicidade. Entre em contato para ajustarmos os dados."></textarea></div>'+
+        '<div class="obs-note" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink);"><strong>Atenção:</strong> o cliente verá esse motivo ao consultar o código dele.</div>'+
+      '</div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" id="btn-recusar" onclick="PS.confirmarRecusa(\''+id+'\')">Recusar pedido</button></div>'+
+    '</div>'+
+  '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+async function confirmarRecusa(id){
+  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var motivo = ((document.getElementById('recusa-motivo') || {}).value || '').trim();
+  var erroEl = document.getElementById('recusa-erro');
+  if(motivo.length < 5){ if(erroEl){ erroEl.textContent = 'Escreva o motivo da recusa (pelo menos 5 caracteres).'; erroEl.style.display = 'block'; } return; }
+  var btn = document.getElementById('btn-recusar'); if(btn){ btn.disabled = true; btn.textContent = 'Recusando…'; }
+  var snap = null;
+  try{
+    var f = await solicitacaoFresca(id, 'solicitado');
+    if(f.sumiu || f.outroStatus){ closePanel(); toast('Este pedido já foi tratado por outra pessoa ou não existe mais.'); render(); return; }
+    var p = f.p; snap = JSON.parse(JSON.stringify(p));
+    p.status = 'recusado'; p.motivoRecusa = motivo.slice(0, 300); p.recusadoEm = todayISO()+' '+nowHM(); p.recusadoPor = nomeAutorAtual();
+    p.historico.push({data:todayISO(), hora:nowHM(), texto:'Pedido recusado pela equipe Lucralize. Motivo: '+p.motivoRecusa, autor:nomeAutorAtual()});
+    var ok = await salvarProcessoNoServidor(p);
+    if(!ok) throw new Error('Não foi possível gravar a recusa na planilha.');
+    state.processes = state.processes.map(function(x){ return x.id === id ? p : x; });
+    saveState(); closePanel();
+    toast('Pedido recusado. O cliente verá o motivo na consulta.');
+    go({name:'admin-solicitacoes'});
+  }catch(e){
+    console.error('Recusar pedido:', e);
+    if(snap){ state.processes = state.processes.map(function(x){ return x.id === id ? snap : x; }); }
+    if(btn){ btn.disabled = false; btn.textContent = 'Recusar pedido'; }
+    if(erroEl){ erroEl.textContent = (e && e.message) || 'Não foi possível recusar o pedido.'; erroEl.style.display = 'block'; }
+  }
+}
+async function reabrirSolicitacao(id){
+  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var snap = null;
+  try{
+    var f = await solicitacaoFresca(id, 'recusado');
+    if(f.sumiu || f.outroStatus){ toast('Este pedido já foi alterado por outra pessoa ou não existe mais.'); render(); return; }
+    var p = f.p; snap = JSON.parse(JSON.stringify(p));
+    p.status = 'solicitado'; delete p.motivoRecusa; delete p.recusadoEm; delete p.recusadoPor;
+    p.historico.push({data:todayISO(), hora:nowHM(), texto:'Pedido reaberto para análise pela equipe Lucralize.', autor:nomeAutorAtual()});
+    var ok = await salvarProcessoNoServidor(p);
+    if(!ok) throw new Error('Não foi possível gravar na planilha.');
+    state.processes = state.processes.map(function(x){ return x.id === id ? p : x; });
+    saveState(); render(); toast('Pedido reaberto para análise.');
+  }catch(e){
+    console.error('Reabrir pedido:', e);
+    if(snap){ state.processes = state.processes.map(function(x){ return x.id === id ? snap : x; }); render(); }
+    toast((e && e.message) || 'Não foi possível reabrir o pedido.');
+  }
+}
+
+/* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
 window.PS = {
@@ -6196,11 +6446,13 @@ window.PS = {
   abrirModalExcluirProcesso: abrirModalExcluirProcesso, confirmarExcluirProcesso: confirmarExcluirProcesso, atualizarModalExcluirTeste: atualizarModalExcluirTeste,
   manualAtualizarEtapas: manualAtualizarEtapas, manualToggleEmpresa: manualToggleEmpresa,
   goLinkPublico: goLinkPublico, linkPublicoSair: linkPublicoSair, linkPublicoSubmitGate: linkPublicoSubmitGate,
-  linkPublicoAcompanharBuscar: linkPublicoAcompanharBuscar, linkPublicoSetTipo: linkPublicoSetTipo,
+  linkPublicoSetTipo: linkPublicoSetTipo,
   linkPublicoIniciarFluxo: linkPublicoIniciarFluxo,
   abrirModalExcluirArquivo: abrirModalExcluirArquivo, confirmarExcluirArquivo: confirmarExcluirArquivo,
   abrirModalExcluirUsuario: abrirModalExcluirUsuario, confirmarExcluirUsuario: confirmarExcluirUsuario,
   vistoriaNaoNecessaria: vistoriaNaoNecessaria,
+  clienteVoltarMenu: clienteVoltarMenu, clienteConsultarAgora: clienteConsultarAgora,
+  aprovarSolicitacao: aprovarSolicitacao, abrirModalRecusar: abrirModalRecusar, confirmarRecusa: confirmarRecusa, reabrirSolicitacao: reabrirSolicitacao,
   copiarCodigo: copiarCodigo,
   clienteIr: clienteIr, clienteVoltar: clienteVoltar, clienteNovaConsulta: clienteNovaConsulta, clienteMascara: clienteMascara, clienteConsultar: clienteConsultar
 };
