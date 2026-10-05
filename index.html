@@ -383,7 +383,7 @@
   .home-choice:disabled{opacity:.6; cursor:wait;}
   .home-choice strong{font-size:1.05rem; font-weight:600;}
   .home-choice span{font-size:.82rem; color:rgba(255,255,255,.75);}
-  .home-msg{width:100%; text-align:left; font-size:.85rem; border-radius:var(--radius-s); padding:.7rem .9rem; background:var(--danger-bg); color:#17202B; border:1px solid var(--danger); white-space:pre-line;}
+  .home-msg{width:100%; text-align:left; font-size:.85rem; border-radius:var(--radius-s); padding:.7rem .9rem; background:rgba(247,38,66,.20); color:#fff; border:1px solid var(--danger); white-space:pre-line;}   /* sempre sobre o fundo escuro da página inicial: legível nos temas claro e escuro */
   .home-card{width:100%; text-align:left; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.2); border-radius:var(--radius-m); padding:1.3rem 1.4rem; display:flex; flex-direction:column; gap:.8rem;}
   .home-card h2{font-size:1.2rem; color:#fff;}
   .home-card p{margin:0; color:rgba(255,255,255,.8); font-size:.9rem; white-space:pre-line;}
@@ -403,6 +403,9 @@
   .cli-erro{font-size:.82rem; background:var(--danger-bg); border:1px solid var(--danger); border-radius:var(--radius-s); padding:.6rem .8rem; color:var(--ink);}
   .cli-aviso{font-size:.84rem; background:var(--warning-bg); border:1px solid var(--warning); border-radius:var(--radius-s); padding:.75rem .9rem; color:var(--ink); line-height:1.5;}
   .cli-aviso .mono{font-weight:700; letter-spacing:.06em;}
+  .cli-card .btn-primary{background:#0C7488; border-color:#0C7488; color:#fff;}   /* cor fixa da marca: bom contraste nos dois temas */
+  .cli-card .btn-primary:hover{background:#095668; border-color:#095668;}
+  .cli-card .btn-primary:disabled{opacity:.65; cursor:wait;}
 </style>
 </head>
 <body>
