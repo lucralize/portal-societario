@@ -712,7 +712,7 @@ var SERVICES = [
   },
   {
     id:'transformacao-mei-me', categoria:'Abertura e Transformação de CNPJ',
-    nome:'Transformação de MEI para ME',
+    nome:'Transformação de MEI',
     resumo:'Migração do registro de MEI (Microempreendedor Individual) para ME (Microempresa), mantendo o mesmo CNPJ.',
     /* Sem valor de serviço — nem para cliente Tech, nem Contabilidade (pedido da Brenda). */
     precos:null,
@@ -2356,7 +2356,7 @@ var SERVICO_SEM_FILIAL_OVERRIDES = {
     resumo: ''
   },
   'transformacao-mei-me': {
-    nome: 'Transformação de MEI para ME',
+    nome: 'Transformação de MEI',
     resumo: ''
   }
 };
@@ -2919,7 +2919,7 @@ function openSolicitarFormAbertura(variant){
     '<label class="radio-option" style="align-items:center;"><input type="checkbox" id="fab-q13-ciente" onchange="PS.fabToggleCiente()"> <strong>Estou ciente!</strong><span class="req-mark">*</span></label>');
 
   var q15 = Q('Por favor, confirme que está ciente do serviço prestado pela Lucralize.', ''+
-    '<div class="obs-note">Gostaríamos de ressaltar que <span class="txt-danger-strong">"não nos responsabilizamos"</span> pela retirada do <span class="txt-danger-strong">"alvará"</span>; garantimos apenas a <span class="txt-danger-strong">"'+(isTransf?'Transformação de MEI para ME':'Abertura do CNPJ')+'"</span>. Cada estado e município tem suas <span class="txt-danger-strong">"particularidades"</span>, por isso não prestamos esse serviço.</div>'+
+    '<div class="obs-note">Gostaríamos de ressaltar que <span class="txt-danger-strong">"não nos responsabilizamos"</span> pela retirada do <span class="txt-danger-strong">"alvará"</span>; garantimos apenas a <span class="txt-danger-strong">"'+(isTransf?'Transformação de MEI':'Abertura do CNPJ')+'"</span>. Cada estado e município tem suas <span class="txt-danger-strong">"particularidades"</span>, por isso não prestamos esse serviço.</div>'+
     '<label class="radio-option" style="align-items:center;"><input type="checkbox" id="fab-q15-ciente" onchange="PS.fabToggleCiente()"> <strong>Estou ciente!</strong><span class="req-mark">*</span></label>');
 
   var avisoUrgencia = avisoUrgenciaHtml('fab-urgencia-ciente', 'PS.fabToggleCiente()', true);
@@ -3100,7 +3100,7 @@ async function enviarSolicitacaoAbertura(variant){
   var ok = await finalizarNovoProcesso({
     id:id, servicoId:servicoId, status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
-    historico:[{data:todayISO(), hora:nowHM(), texto:(isTransf?'Formulário de transformação de MEI para ME':'Formulário de abertura de CNPJ')+' preenchido e enviado pelo cliente.', autor:'cliente'}],
+    historico:[{data:todayISO(), hora:nowHM(), texto:(isTransf?'Formulário de transformação de MEI':'Formulário de abertura de CNPJ')+' preenchido e enviado pelo cliente.', autor:'cliente'}],
     documentosAndamento:[], documentosFinais:[],
     formularioAbertura: dados
   });
@@ -3158,7 +3158,7 @@ function renderFormularioAberturaResumo(p){
 
   return '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:1.3rem;">'+
     '<div style="display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap;">'+
-      '<span class="eyebrow">'+(d.cnpjAtual?'Formulário de transformação de MEI para ME enviado pelo cliente':'Formulário de abertura de CNPJ enviado pelo cliente')+'</span>'+
+      '<span class="eyebrow">'+(d.cnpjAtual?'Formulário de transformação de MEI enviado pelo cliente':'Formulário de abertura de CNPJ enviado pelo cliente')+'</span>'+
       '<span class="pill tag-confirmado"><span class="pill-dot"></span>Respostas e documentos do cliente</span>'+
     '</div>'+
     '<div>'+
@@ -3225,12 +3225,16 @@ function altToggleTipos(){
 
   function show(id, on){ var el = document.getElementById(id); if(el) el.style.display = on ? 'flex' : 'none'; }
 
+  var endDestino = (document.querySelector('input[name="alt-end-destino"]:checked')||{}).value || '';
+  var endOutro = endereco && endDestino === 'outro';
+  var endNota = document.getElementById('alt-end-lucralize-nota'); if(endNota) endNota.style.display = (endereco && endDestino === 'lucralize') ? 'block' : 'none';
   show('alt-bloco-endereco', endereco);
+  show('alt-endereco-novo-wrap', endOutro);
   show('alt-bloco-atividades', atividades);
   show('alt-bloco-nome', nome);
-  show('alt-bloco-atividades-local', endereco || atividades);
-  show('alt-bloco-iptu', endereco || atividades || nome);
-  show('alt-iptu-area-wrap', endereco || atividades);
+  show('alt-bloco-atividades-local', endOutro || atividades);
+  show('alt-bloco-iptu', endOutro || atividades || nome);
+  show('alt-iptu-area-wrap', endOutro || atividades);
   show('alt-bloco-socios-capital', quadro || capital);
   show('alt-quadro-sub', quadro);
   show('alt-capital-sub', capital);
@@ -3297,7 +3301,14 @@ function openSolicitarFormAlteracao(servicoId){
     '</div>');
 
   var blocoEndereco = altBloco('alt-bloco-endereco', 'Detalhes — Alteração de Endereço', ''+
-    '<div class="field"><label>Novo endereço completo (com CEP) <span class="req-mark">*</span></label><input type="text" id="alt-endereco-novo" placeholder="Rua, número, bairro, cidade, UF, CEP"></div>');
+    '<div class="field"><label>O novo endereço da empresa será <span class="req-mark">*</span></label>'+
+      '<div class="radio-group">'+
+        '<label class="radio-option"><input type="radio" name="alt-end-destino" value="lucralize" onchange="PS.altToggleTipos()"> Endereço da Lucralize</label>'+
+        '<label class="radio-option"><input type="radio" name="alt-end-destino" value="outro" onchange="PS.altToggleTipos()"> Outro endereço</label>'+
+      '</div>'+
+    '</div>'+
+    '<div class="obs-note" id="alt-end-lucralize-nota" style="display:none;">Será usado o endereço da Lucralize. Você não precisa informar novo endereço, IPTU nem área: já temos esses dados.'+(ENDERECO_LUCRALIZE ? '<br><strong>Endereço:</strong> '+esc(ENDERECO_LUCRALIZE) : '')+'</div>'+
+    '<div class="field" id="alt-endereco-novo-wrap" style="display:none;"><label>Novo endereço completo (com CEP) <span class="req-mark">*</span></label><input type="text" id="alt-endereco-novo" placeholder="Rua, número, bairro, cidade, UF, CEP"></div>');
 
   var blocoAtividades = altBloco('alt-bloco-atividades', 'Detalhes — Alteração de Atividades Econômicas', ''+
     '<div class="field"><label>Atividade principal — CNAE ou descrição <span class="req-mark">*</span></label><input type="text" id="alt-ativ-principal" placeholder="Ex.: 62.01-5-01 — Desenvolvimento de programas de computador"></div>'+
@@ -3396,24 +3407,27 @@ function altValidar(servicoId){
   var atividades = !!(document.getElementById('alt-tipo-atividades')||{}).checked;
   var capital = !!(document.getElementById('alt-tipo-capital')||{}).checked;
   var nome = !!(document.getElementById('alt-tipo-nome')||{}).checked;
+  var endDestino = (document.querySelector('input[name="alt-end-destino"]:checked')||{}).value || '';
+  var endOutro = endereco && endDestino === 'outro';
 
   if(!(endereco||quadro||atividades||capital||nome)){
     erros.push('Selecione ao menos um tipo de Alteração Contratual');
   }
 
   if(endereco){
-    req('alt-endereco-novo', 'Novo endereço completo (Endereço)');
+    if(!endDestino) erros.push('Endereço da Lucralize ou outro endereço');
+    else if(endOutro) req('alt-endereco-novo', 'Novo endereço completo (Endereço)');
   }
   if(atividades){
     req('alt-ativ-principal', 'Atividade principal (Atividades Econômicas)');
   }
-  if(endereco || atividades){
+  if(endOutro || atividades){
     var localRadioV = document.querySelector('input[name="alt-local"]:checked');
     if(!localRadioV) erros.push('Confirmação se a atividade é presencial ou apenas fiscal');
     else if(localRadioV.value==='presencial') req('alt-local-atividade', 'Especificação da(s) atividade(s) presencial(is)');
     req('alt-iptu-area', 'Área a ser utilizada pela empresa em m²');
   }
-  if(endereco || atividades || nome){
+  if(endOutro || atividades || nome){
     var iptuModo = document.querySelector('input[name="alt-iptu-modo"]:checked');
     if(!iptuModo) erros.push('Guia de IPTU ou índice cadastral');
     else if(iptuModo.value==='upload') reqFile('alt-iptu-file', 'Upload da guia de IPTU');
@@ -3491,6 +3505,8 @@ async function enviarSolicitacaoAlteracao(servicoId){
   var atividades = !!(document.getElementById('alt-tipo-atividades')||{}).checked;
   var capital = !!(document.getElementById('alt-tipo-capital')||{}).checked;
   var nome = !!(document.getElementById('alt-tipo-nome')||{}).checked;
+  var endDestino = (document.querySelector('input[name="alt-end-destino"]:checked')||{}).value || '';
+  var endOutro = endereco && endDestino === 'outro';
   var localRadio = document.querySelector('input[name="alt-local"]:checked');
   var iptuModo = document.querySelector('input[name="alt-iptu-modo"]:checked');
   var fantasiaChk = document.getElementById('alt-nome-fantasia-chk');
@@ -3511,17 +3527,17 @@ async function enviarSolicitacaoAlteracao(servicoId){
     destinoEstado: isComplexa ? document.getElementById('alt-destino-estado').value.trim() : '',
     destinoMunicipio: isComplexa ? document.getElementById('alt-destino-municipio').value.trim() : '',
     tipos: tiposLabels,
-    endereco: endereco ? { novoEndereco: document.getElementById('alt-endereco-novo').value.trim() } : null,
+    endereco: endereco ? { destino: endDestino, novoEndereco: endOutro ? document.getElementById('alt-endereco-novo').value.trim() : (ENDERECO_LUCRALIZE || 'Endereço da Lucralize') } : null,
     atividades: atividades ? {
       principalResultante: document.getElementById('alt-ativ-principal').value.trim(),
       secundariasResultantes: document.getElementById('alt-ativ-secundarias').value.trim()
     } : null,
-    localConfirmacao: (endereco||atividades) && localRadio ? localRadio.value : '',
-    localAtividade: (endereco||atividades) && localRadio && localRadio.value==='presencial' ? document.getElementById('alt-local-atividade').value.trim() : '',
-    iptuModo: (endereco||atividades||nome) && iptuModo ? iptuModo.value : '',
-    iptuIndice: (endereco||atividades||nome) && iptuModo && iptuModo.value==='texto' ? document.getElementById('alt-iptu-texto').value.trim() : '',
-    iptuArquivo: (endereco||atividades||nome) && iptuModo && iptuModo.value==='upload' ? await fabArquivoReal('alt-iptu-file', id, 'iptu') : null,
-    iptuArea: (endereco||atividades) ? document.getElementById('alt-iptu-area').value.trim() : '',
+    localConfirmacao: (endOutro||atividades) && localRadio ? localRadio.value : '',
+    localAtividade: (endOutro||atividades) && localRadio && localRadio.value==='presencial' ? document.getElementById('alt-local-atividade').value.trim() : '',
+    iptuModo: (endOutro||atividades||nome) && iptuModo ? iptuModo.value : '',
+    iptuIndice: (endOutro||atividades||nome) && iptuModo && iptuModo.value==='texto' ? document.getElementById('alt-iptu-texto').value.trim() : '',
+    iptuArquivo: (endOutro||atividades||nome) && iptuModo && iptuModo.value==='upload' ? await fabArquivoReal('alt-iptu-file', id, 'iptu') : null,
+    iptuArea: (endOutro||atividades) ? document.getElementById('alt-iptu-area').value.trim() : '',
     quadroDivisao: quadro ? document.getElementById('alt-quadro-capital').value.trim() : '',
     capitalNovoValor: capital ? document.getElementById('alt-capital-novo-valor').value.trim() : '',
     capitalPercentual: capital ? document.getElementById('alt-capital-percentual').value.trim() : '',
@@ -3602,7 +3618,7 @@ function renderFormularioAlteracaoResumo(p){
         '<div class="info-block"><span class="lbl">Solicitante</span><span class="val">'+esc(d.nomeCompleto)+'</span></div>'+
         '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Tipo(s) de alteração</span><span class="val">'+esc((d.tipos||[]).join(', '))+'</span></div>'+
         (d.origemEstado ? '<div class="info-block"><span class="lbl">Transferência entre estados</span><span class="val">'+esc(d.origemEstado)+' → '+esc(d.destinoEstado)+' ('+esc(d.destinoMunicipio)+')</span></div>' : '')+
-        (d.endereco ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Novo endereço</span><span class="val">'+esc(d.endereco.novoEndereco)+'</span></div>' : '')+
+        (d.endereco ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Novo endereço</span><span class="val">'+(d.endereco.destino==='lucralize' ? 'Endereço da Lucralize'+(d.endereco.novoEndereco && d.endereco.novoEndereco!=='Endereço da Lucralize' ? ' — '+esc(d.endereco.novoEndereco) : '') : esc(d.endereco.novoEndereco))+'</span></div>' : '')+
         (d.localConfirmacao ? '<div class="info-block"><span class="lbl">Atividade presencial ou fiscal</span><span class="val">'+(d.localConfirmacao==='presencial'?'Haverá atividade presencial':'Apenas fins fiscais')+'</span></div>' : '')+
         (d.localAtividade ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividade(s) exercida(s) presencialmente</span><span class="val">'+esc(d.localAtividade)+'</span></div>' : '')+
         (d.iptuIndice ? '<div class="info-block"><span class="lbl">Índice cadastral IPTU</span><span class="val">'+esc(d.iptuIndice)+'</span></div>' : '')+
@@ -4899,7 +4915,7 @@ function renderAdminOverview(){
 
   var TIPO_BUCKETS = [
     {id:'abertura', label:'Abertura de CNPJ', ic:'▤', servicos:['abertura-cnpj']},
-    {id:'transformacao-mei', label:'Transformação de MEI para ME', ic:'▤', servicos:['transformacao-mei-me']},
+    {id:'transformacao-mei', label:'Transformação de MEI', ic:'▤', servicos:['transformacao-mei-me']},
     {id:'alteracao', label:'Alteração Contratual', ic:'≣', servicos:['alteracao-simples','alteracao-complexa']},
     {id:'baixa', label:'Baixa de CNPJ', ic:'◎', servicos:['baixa-cnpj']},
     {id:'alvara', label:'Alvará de Funcionamento', ic:'◆', servicos:['alvara-funcionamento']}
@@ -5835,6 +5851,8 @@ async function clienteConsultar(){
    Processos com status "solicitado", sem OS e sem empresa. A equipe vê esses pedidos na aba
    "Processos sem OS" e decide: aprovar (gera a OS e cadastra/reaproveita a empresa) ou recusar.
    ========================================================= */
+/* endereço da Lucralize mostrado ao cliente quando ele escolhe esse endereço na alteração contratual (opcional: vazio = só o texto padrão) */
+var ENDERECO_LUCRALIZE = '';
 var AVISO_PRIVACIDADE = 'Os dados e documentos que você informar serão usados pela Lucralize apenas para analisar e executar o serviço solicitado. Ficam armazenados com acesso restrito à equipe e só serão compartilhados com órgãos públicos quando isso for necessário para realizar o serviço. Para pedir informações ou a exclusão dos seus dados, fale com a Lucralize.';
 
 function cnpjValido(v){
