@@ -2885,7 +2885,7 @@ function openSolicitarFormAbertura(variant){
 
   var q8 = Q('Quais serão as atividades secundárias?', ''+
     '<div class="obs-note">Coloque o CNAE ou descreva qual será as demais atividades exercidas no seu CNPJ, podemos incluir até 99 CNAEs, mesmo que não utilize todos no momento. Reforçamos que o ideal é incluir as atividades que façam parte do mesmo ramo da atividade principal.</div>'+
-    '<div class="field"><label>Atividades secundárias <span class="req-mark">*</span></label><textarea id="fab-q8-secundarias" rows="3" placeholder="CNAEs ou descrição das atividades secundárias"></textarea></div>');
+    '<div class="field"><label>Atividades secundárias <span class="req-mark">*</span></label><textarea id="fab-q8-secundarias" rows="5" placeholder="Um CNAE por linha. Ex.:&#10;6202-3/00 - Desenvolvimento e licenciamento de programas de computador customizáveis&#10;6204-0/00 - Consultoria em tecnologia da informação"></textarea></div>');
 
   var q9 = Q('Informe os dados do(s) sócio(s) da empresa', ''+
     '<p style="font-size:.8rem; color:var(--ink-faint);">Preencha o nome completo de cada sócio para liberar os campos seguintes. Os dados de cada sócio devem ser preenchidos individualmente.</p>'+
@@ -3174,7 +3174,7 @@ function renderFormularioAberturaResumo(p){
         (d.nomeFantasia ? '<div class="info-block"><span class="lbl">Nome fantasia</span><span class="val">'+esc(d.nomeFantasia)+'</span></div>' : '')+
         '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Capital social</span><span class="val" style="white-space:pre-line;">'+esc(d.capitalSocial)+'</span></div>'+
         '<div class="info-block"><span class="lbl">Atividade principal</span><span class="val">'+esc(d.atividadePrincipal)+'</span></div>'+
-        '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividades secundárias</span><span class="val">'+esc(d.atividadesSecundarias)+'</span></div>'+
+        '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividades secundárias</span><span class="val">'+cnaesHtml(d.atividadesSecundarias)+'</span></div>'+
         '<div class="info-block"><span class="lbl">Natureza jurídica</span><span class="val">'+esc(natureza)+'</span></div>'+
         '<div class="info-block"><span class="lbl">Enquadramento</span><span class="val">'+esc(enquadramento)+'</span></div>'+
         '<div class="info-block"><span class="lbl">Optante Simples Nacional</span><span class="val">'+esc(simples)+'</span></div>'+
@@ -3312,7 +3312,7 @@ function openSolicitarFormAlteracao(servicoId){
 
   var blocoAtividades = altBloco('alt-bloco-atividades', 'Detalhes — Alteração de Atividades Econômicas', ''+
     '<div class="field"><label>Atividade principal — CNAE ou descrição <span class="req-mark">*</span></label><input type="text" id="alt-ativ-principal" placeholder="Ex.: 62.01-5-01 — Desenvolvimento de programas de computador"></div>'+
-    '<div class="field"><label>Atividades secundárias — CNAE ou descrição</label><textarea id="alt-ativ-secundarias" rows="3" placeholder="Liste os CNAEs e descrições das atividades secundárias"></textarea></div>');
+    '<div class="field"><label>Atividades secundárias — CNAE ou descrição</label><textarea id="alt-ativ-secundarias" rows="5" placeholder="Um CNAE por linha. Ex.:&#10;6202-3/00 - Desenvolvimento e licenciamento de programas de computador customizáveis&#10;6204-0/00 - Consultoria em tecnologia da informação"></textarea></div>');
 
   var blocoLocal = altBloco('alt-bloco-atividades-local', 'Confirmação — atividade presencial ou apenas fiscal', ''+
     '<div class="obs-note">Precisamos confirmar se a atividade será exercida presencialmente no endereço informado, ou se o endereço é utilizado apenas para fins fiscais (sem atividade presencial no local).</div>'+
@@ -3624,7 +3624,7 @@ function renderFormularioAlteracaoResumo(p){
         (d.iptuIndice ? '<div class="info-block"><span class="lbl">Índice cadastral IPTU</span><span class="val">'+esc(d.iptuIndice)+'</span></div>' : '')+
         (d.iptuArea ? '<div class="info-block"><span class="lbl">Área (m²)</span><span class="val">'+esc(d.iptuArea)+'</span></div>' : '')+
         (d.atividades ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividade principal</span><span class="val">'+esc(d.atividades.principalResultante)+'</span></div>' : '')+
-        (d.atividades && d.atividades.secundariasResultantes ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividades secundárias</span><span class="val">'+esc(d.atividades.secundariasResultantes)+'</span></div>' : '')+
+        (d.atividades && d.atividades.secundariasResultantes ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Atividades secundárias</span><span class="val">'+cnaesHtml(d.atividades.secundariasResultantes)+'</span></div>' : '')+
         (d.quadroDivisao ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Divisão do quadro societário</span><span class="val" style="white-space:pre-line;">'+esc(d.quadroDivisao)+'</span></div>' : '')+
         (d.capitalNovoValor ? '<div class="info-block"><span class="lbl">Novo capital social</span><span class="val">'+esc(d.capitalNovoValor)+'</span></div>' : '')+
         (d.capitalPercentual ? '<div class="info-block full" style="grid-column:1/-1;"><span class="lbl">Divisão percentual do capital</span><span class="val" style="white-space:pre-line;">'+esc(d.capitalPercentual)+'</span></div>' : '')+
@@ -6380,6 +6380,40 @@ async function dispararEmail(p){
     if(t < 3) await msEspera(1500 * t);
   }
   toast('A etapa foi atualizada, mas o e-mail ao cliente não foi disparado ('+cortar(ultimo && ultimo.message, 80)+'). Avise o cliente por outro meio.');
+}
+
+/* =========================================================
+   ATIVIDADES (CNAE): o cliente costuma colar a lista inteira num campo só, e ela chegava para a equipe como um
+   parágrafo corrido. Aqui o texto é separado em itens (um CNAE por linha, com o código em destaque).
+   Funciona com os formatos 6202-3/00, 62.01-5-01 e 6201501, e também com listas sem código (uma por linha ou
+   separadas por ponto e vírgula).
+   ========================================================= */
+function separarCnaes(texto){
+  var t = String(texto || '').replace(/\r/g, '').trim();
+  if(!t) return [];
+  var re = /(\d{4}-\d\/\d{2}|\d{2}\.\d{2}-\d-\d{2}|\b\d{7}\b)/g, achados = [], m;
+  while((m = re.exec(t))){ achados.push({i: m.index, codigo: m[1]}); }
+  function limpa(x){ return x.replace(/^[\s\-–—:;,.|]+/, '').replace(/[\s;,.|]+$/, '').replace(/\s+/g, ' ').trim(); }
+  var itens = [];
+  if(achados.length){
+    var antes = limpa(t.slice(0, achados[0].i));
+    if(antes) itens.push({codigo: '', descricao: antes});
+    achados.forEach(function(a, k){
+      var fim = k + 1 < achados.length ? achados[k + 1].i : t.length;
+      itens.push({codigo: a.codigo, descricao: limpa(t.slice(a.i + a.codigo.length, fim))});
+    });
+  } else {
+    t.split(/\n|;/).forEach(function(x){ x = limpa(x); if(x) itens.push({codigo: '', descricao: x}); });
+  }
+  return itens;
+}
+function cnaesHtml(texto){
+  var itens = separarCnaes(texto);
+  if(itens.length < 2) return esc(texto);       /* uma atividade só: continua como estava */
+  return '<span style="display:block; font-size:.74rem; color:var(--ink-faint); margin-bottom:.35rem;">'+itens.length+' atividades</span>'+
+    '<ol style="margin:0; padding-left:1.5rem; display:flex; flex-direction:column; gap:.4rem; font-weight:500;">'+
+    itens.map(function(it){ return '<li>'+(it.codigo ? '<strong>'+esc(it.codigo)+'</strong>'+(it.descricao ? ' — ' : '') : '')+esc(it.descricao)+'</li>'; }).join('')+
+    '</ol>';
 }
 
 /* =========================================================
