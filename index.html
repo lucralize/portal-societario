@@ -1297,12 +1297,11 @@ async function xlCriarUsuario(body){
   if(rows.some(function(r){ return xlNorm(r.dados.email) === email; })) return { data: { erro: 'Já existe um usuário com este e-mail.' }, error: null };
   var id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   var d = { id: id, nome: body.nome, email: String(body.email).trim(), telefone: body.telefone || '—', role: body.role, empresaId: null, ativo: true };
-  if(body.permissoes) d.permissoes = body.permissoes;
   await xlGravar('usuarios', [{ id: id, role: body.role, empresa_id: null, senha_provisoria: false, dados: d }]);
   return { data: { id: id, senha: '' }, error: null };
 }
 
-/* ---------- API compatível com o que o app já chamava em "planilha.*" ---------- */
+/* ---------- API de acesso aos dados (usada pelo app como "planilha.*") ---------- */
 function XQ(t){ this.t = t; this.op = 'select'; this.f = []; this.payload = null; this.sel = false; this.one = null; }
 XQ.prototype.select = function(){ if(this.op !== 'select') this.sel = true; return this; };
 XQ.prototype.upsert = function(r){ this.op = 'upsert'; this.payload = [].concat(r); return this; };
@@ -2258,7 +2257,7 @@ function renderShell(u){
       {k:'admin-processos', ic:'≣', label:'Processos'},
       {k:'admin-catalogo', ic:'▤', label:'Catálogo de serviços'}
     ];
-    if(u.role==='admin') items.splice(2, 0, {k:'admin-solicitacoes', ic:'✉', label:'Processos sem OS', badge:contarSolicitacoes()});
+    items.splice(2, 0, {k:'admin-solicitacoes', ic:'✉', label:'Processos sem OS', badge:contarSolicitacoes()});
     items.push({k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'});
     if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
   } else {
@@ -2272,7 +2271,7 @@ function renderShell(u){
   if(u.role==='colaborador' && state.view.name==='admin-usuarios'){
     state.view = {name:'admin-processos'};
   }
-  if(u.role!=='admin' && state.view.name==='admin-solicitacoes'){ state.view = {name:'admin-processos'}; }
+  if(u.role==='freelancer' && state.view.name==='admin-solicitacoes'){ state.view = {name:'admin-processos'}; }
   var navHtml = items.map(function(it){
     var active = state.view.name===it.k;
     return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+it.k+'\'})"><span class="ic">'+it.ic+'</span>'+it.label+(it.badge ? '<span class="nav-badge">'+it.badge+'</span>' : '')+'</button>';
@@ -5283,25 +5282,13 @@ async function confirmarIncluirProcessoManual(){
 }
 
 /* ---------- ADMIN: usuários ---------- */
-var PERMISSOES_COLABORADOR = [
-  {id:'consultarProcessos', label:'Consultar processos'},
-  {id:'arquivos', label:'Anexar e baixar arquivos'},
-  {id:'atualizarProcessos', label:'Atualizar processos'},
-  {id:'copiaEmails', label:'Receber cópias dos e-mails enviados ao cliente e ao administrador'}
-];
-function permissoesResumo(u){
-  if(u.role!=='colaborador' && u.role!=='freelancer') return '';
-  var p = u.permissoes || {};
-  var ativas = PERMISSOES_COLABORADOR.filter(function(pm){return p[pm.id];}).map(function(pm){return pm.label;});
-  return ativas.length ? ativas.join(' · ') : 'Nenhuma permissão liberada ainda';
-}
+
 function renderAdminUsuarios(){
   var rows = state.users.map(function(u){
     var c = u.empresaId ? getCompany(u.empresaId) : null;
     var chip = roleChipInfo(u);
     return '<tr>'+
       '<td><div style="display:flex; align-items:center; gap:.6rem;"><span class="demo-avatar" style="width:30px; height:30px; font-size:.68rem; background:var(--surface-2);">'+initials(u.nome)+'</span><div><strong style="font-size:.85rem;">'+esc(u.nome)+'</strong><div style="font-size:.74rem; color:var(--ink-faint);">'+esc(u.email)+'</div>'+
-        ((u.role==='colaborador'||u.role==='freelancer') ? '<div style="font-size:.7rem; color:var(--ink-faint); margin-top:.15rem;">'+esc(permissoesResumo(u))+'</div>' : '')+
       '</div></div></td>'+
       '<td>'+(c?esc(c.nome):'—')+'</td>'+
       '<td><span class="role-chip '+chip.cls+'">'+chip.label+'</span></td>'+
@@ -5324,16 +5311,7 @@ function euCamposEmpresaHtml(c){
       '<div class="field"><label>Tipo societário</label><input id="eu-tipo" type="text" value="'+esc(c?c.tipo:'')+'"></div>'+
     '</div>';
 }
-function euPermissoesHtml(u){
-  return ''+
-    '<div style="display:flex; flex-direction:column; gap:.5rem;">'+
-      '<label>Permissões de acesso</label>'+
-      '<div class="radio-group">'+PERMISSOES_COLABORADOR.map(function(pm){
-        var marcado = !!(u.permissoes && u.permissoes[pm.id]);
-        return '<label class="radio-option"><input type="checkbox" id="eu-perm-'+pm.id+'"'+(marcado?' checked':'')+'> '+esc(pm.label)+'</label>';
-      }).join('')+'</div>'+
-    '</div>';
-}
+
 function abrirEditarUsuario(id){
   var u = getUser(id);
   if(!u) return;
@@ -5367,9 +5345,6 @@ function abrirEditarUsuario(id){
           empresaSelectHtml+
           '<div id="eu-empresa-campos">'+euCamposEmpresaHtml(c)+'</div>'+
         '</div>'+
-        '<div id="eu-permissoes-wrap" style="display:'+((u.role==='colaborador'||u.role==='freelancer')?'flex':'none')+'; flex-direction:column; gap:.5rem;">'+
-          euPermissoesHtml(u)+
-        '</div>'+
       '</div>'+
       '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" id="eu-salvar-btn" onclick="PS.salvarEdicaoUsuario(\''+id+'\')">Salvar alterações</button></div>'+
     '</div>'+
@@ -5384,9 +5359,7 @@ function abrirEditarUsuario(id){
 function euToggleTipoAcesso(){
   var tipo = (document.querySelector('input[name="eu-tipo-acesso"]:checked')||{}).value || 'admin';
   var empresaWrap = document.getElementById('eu-empresa-wrap');
-  var permWrap = document.getElementById('eu-permissoes-wrap');
   if(empresaWrap) empresaWrap.style.display = tipo==='cliente' ? 'block' : 'none';
-  if(permWrap) permWrap.style.display = (tipo==='colaborador' || tipo==='freelancer') ? 'flex' : 'none';
   var telWrap = document.getElementById('eu-telefone-wrap');
   if(telWrap) telWrap.style.display = tipo==='admin' ? '' : 'none';
 }
@@ -5417,14 +5390,6 @@ async function salvarEdicaoUsuario(id){
   /* o telefone não é mais pedido: o que já estiver cadastrado fica como está */
   u.role = novoRole;
   if(novoRole!=='admin') u.principal = false;
-  if(novoRole==='colaborador' || novoRole==='freelancer'){
-    var permissoesEditadas = {};
-    PERMISSOES_COLABORADOR.forEach(function(pm){
-      var el = document.getElementById('eu-perm-'+pm.id);
-      permissoesEditadas[pm.id] = !!(el && el.checked);
-    });
-    u.permissoes = permissoesEditadas;
-  }
 
   var c = null, snapshotEmpresa = null;
   if(novoRole==='cliente'){
@@ -5463,9 +5428,6 @@ async function salvarEdicaoUsuario(id){
 }
 
 function openNovoUsuario(){
-  var permCheckboxesHtml = PERMISSOES_COLABORADOR.map(function(pm){
-    return '<label class="radio-option"><input type="checkbox" id="nu-perm-'+pm.id+'"> '+esc(pm.label)+'</label>';
-  }).join('');
   var html = ''+
   '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
     '<div class="modal-box">'+
@@ -5474,29 +5436,19 @@ function openNovoUsuario(){
         '<div class="field full">'+
           '<label>Tipo de acesso</label>'+
           '<div class="radio-group">'+
-            '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="admin" onchange="PS.nuToggleTipoAcesso()"> Administrador</label>'+
-            '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="colaborador" checked onchange="PS.nuToggleTipoAcesso()"> Colaborador</label>'+
+            '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="admin"> Administrador</label>'+
+            '<label class="radio-option"><input type="radio" name="nu-tipo-acesso" value="colaborador" checked> Colaborador</label>'+
           '</div>'+
         '</div>'+
         '<div class="form-grid">'+
           '<div class="field full"><label>Nome completo <span class="req-mark">*</span></label><input id="nu-nome" type="text" placeholder="Ex: João Pereira"></div>'+
           '<div class="field full"><label>E-mail da conta Microsoft <span class="req-mark">*</span></label><input id="nu-email" type="text" placeholder="nome@lucralize.com.br"></div>'+
         '</div>'+
-        '<div id="nu-permissoes-wrap" style="display:flex; flex-direction:column; gap:.5rem;">'+
-          '<label>Permissões de acesso</label>'+
-          '<p style="font-size:.78rem; color:var(--ink-faint); margin:0;">As permissões marcadas ficam registradas no cadastro — não bloqueiam telas ou ações.</p>'+
-          '<div class="radio-group">'+permCheckboxesHtml+'</div>'+
-        '</div>'+
       '</div>'+
       '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" onclick="PS.criarUsuario()">Liberar acesso</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
-}
-function nuToggleTipoAcesso(){
-  var tipo = (document.querySelector('input[name="nu-tipo-acesso"]:checked')||{}).value || 'colaborador';
-  var permWrap = document.getElementById('nu-permissoes-wrap');
-  if(permWrap) permWrap.style.display = (tipo==='colaborador' || tipo==='freelancer') ? 'flex' : 'none';
 }
 async function criarUsuario(){
   var tipoAcesso = (document.querySelector('input[name="nu-tipo-acesso"]:checked')||{}).value || 'colaborador';
@@ -5507,22 +5459,13 @@ async function criarUsuario(){
   if(email.indexOf('@')===-1){ toast('Informe o e-mail completo da conta Microsoft.'); return; }
   var btnCriar = document.querySelector('.panel-foot .btn-primary');
   if(btnCriar){ btnCriar.disabled = true; btnCriar.textContent = 'Salvando…'; }
-  var permissoesNovoUsuario = null;
-  if(tipoAcesso==='colaborador' || tipoAcesso==='freelancer'){
-    permissoesNovoUsuario = {};
-    PERMISSOES_COLABORADOR.forEach(function(pm){
-      var el = document.getElementById('nu-perm-'+pm.id);
-      permissoesNovoUsuario[pm.id] = !!(el && el.checked);
-    });
-  }
-  var funcResp = await planilha.functions.invoke('criar-usuario', {body:{nome:nome, email:email, telefone:telefone, role:tipoAcesso, empresaId:null, permissoes:permissoesNovoUsuario}});
+  var funcResp = await planilha.functions.invoke('criar-usuario', {body:{nome:nome, email:email, telefone:telefone, role:tipoAcesso, empresaId:null}});
   if(funcResp.error || (funcResp.data && funcResp.data.erro)){
     if(btnCriar){ btnCriar.disabled = false; btnCriar.textContent = 'Liberar acesso'; }
     toast('Não foi possível liberar o acesso: '+(funcResp.error ? funcResp.error.message : funcResp.data.erro));
     return;
   }
   var novoUsuario = {id:funcResp.data.id, nome:nome, email:email, telefone:telefone||'—', role: tipoAcesso, empresaId:null, ativo:true};
-  if(permissoesNovoUsuario) novoUsuario.permissoes = permissoesNovoUsuario;
   state.users.push(novoUsuario);
   saveState();
   closePanel();
@@ -6072,7 +6015,7 @@ async function enviarSolicitacaoPublicaInterno(processo){
 function chaveEnvio(p){ var h = (p.historico && p.historico[0]) || {}; return (h.data || p.criadoEm || '') + ' ' + (h.hora || ''); }
 function solicitacoesPendentes(){ return state.processes.filter(function(p){ return p.status === 'solicitado'; }).sort(function(a, b){ return chaveEnvio(a).localeCompare(chaveEnvio(b)); }); }
 function solicitacoesRecusadas(){ return state.processes.filter(function(p){ return p.status === 'recusado'; }).sort(function(a, b){ return String(b.recusadoEm || '').localeCompare(String(a.recusadoEm || '')); }); }
-function contarSolicitacoes(){ var u = currentUser(); return (u && u.role === 'admin') ? solicitacoesPendentes().length : 0; }
+function contarSolicitacoes(){ var u = currentUser(); return (u && (u.role === 'admin' || u.role === 'colaborador')) ? solicitacoesPendentes().length : 0; }
 function nomeEmpresaDoPedido(p){ return (p.empresaSolicitada && p.empresaSolicitada.nome) || nomeParaProcesso(p); }
 function enviadoEm(p){ var h = (p.historico && p.historico[0]) || {}; return fmtDate(h.data || p.criadoEm) + (h.hora ? ' '+h.hora : ''); }
 function renderAdminSolicitacoes(){
@@ -6133,7 +6076,7 @@ async function gerarOSEstrita(){
   return r.data;
 }
 async function aprovarSolicitacao(id){
-  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var eu = currentUser(); if(!eu || (eu.role !== 'admin' && eu.role !== 'colaborador')) return;
   var btn = document.getElementById('btn-aprovar'); if(btn){ btn.disabled = true; btn.textContent = 'Aprovando…'; }
   function reabilita(){ if(btn){ btn.disabled = false; btn.textContent = 'Aprovar e gerar OS'; } }
   var snap = null, criouEmpresa = false, empresa = null, p = null;
@@ -6185,7 +6128,7 @@ function abrirModalRecusar(id){
   document.body.insertAdjacentHTML('beforeend', html);
 }
 async function confirmarRecusa(id){
-  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var eu = currentUser(); if(!eu || (eu.role !== 'admin' && eu.role !== 'colaborador')) return;
   var motivo = ((document.getElementById('recusa-motivo') || {}).value || '').trim();
   var erroEl = document.getElementById('recusa-erro');
   if(motivo.length < 5){ if(erroEl){ erroEl.textContent = 'Escreva o motivo da recusa (pelo menos 5 caracteres).'; erroEl.style.display = 'block'; } return; }
@@ -6211,7 +6154,7 @@ async function confirmarRecusa(id){
   }
 }
 async function reabrirSolicitacao(id){
-  var eu = currentUser(); if(!eu || eu.role !== 'admin') return;
+  var eu = currentUser(); if(!eu || (eu.role !== 'admin' && eu.role !== 'colaborador')) return;
   var snap = null;
   try{
     var f = await solicitacaoFresca(id, 'recusado');
@@ -6430,7 +6373,7 @@ window.PS = {
   selecionarTipoProcesso: selecionarTipoProcesso, mudarMesConcluidos: mudarMesConcluidos,
   openSolicitarForm: openSolicitarForm, onDocFileChosen: onDocFileChosen, enviarSolicitacao: enviarSolicitacao,
   avancarEtapa: avancarEtapa, anexarDocumento: anexarDocumento, anexarDocPendente: anexarDocPendente, baixarArquivoReal: baixarArquivoReal,
-  openNovoUsuario: openNovoUsuario, criarUsuario: criarUsuario, nuToggleTipoAcesso: nuToggleTipoAcesso, abrirEditarUsuario: abrirEditarUsuario, salvarEdicaoUsuario: salvarEdicaoUsuario,
+  openNovoUsuario: openNovoUsuario, criarUsuario: criarUsuario, abrirEditarUsuario: abrirEditarUsuario, salvarEdicaoUsuario: salvarEdicaoUsuario,
   euToggleTipoAcesso: euToggleTipoAcesso, euAtualizarCamposEmpresa: euAtualizarCamposEmpresa,
   salvarProtocolo: salvarProtocolo, filtrarProcessosLive: filtrarProcessosLive, limparFiltrosProcessos: limparFiltrosProcessos,
   fabAtualizarSocios: fabAtualizarSocios, fabRegenerarSocios: fabRegenerarSocios, fabNomeSocioChanged: fabNomeSocioChanged,
