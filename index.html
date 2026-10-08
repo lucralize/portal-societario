@@ -910,7 +910,7 @@ var SEED_VERSION = 8; /* aumentar sempre que a estrutura inicial dos dados de ex
    sozinha o HTML/JS de novo — isso vinha causando a impressão de que correções
    já publicadas "não tinham funcionado", quando na verdade a aba só estava
    rodando a versão antiga. */
-var BUILD_ID = '20261001-xl1';
+var BUILD_ID = '20261008-anexos1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
    O app chama "planilha.*", com a mesma forma de uma API de banco de dados
@@ -1183,7 +1183,7 @@ function xlFindIdx(t, raw, id){
   }
   return -1;
 }
-async function xlSelect(t, forcar){
+async function xlSelect(t, forcar, semBase){
   var c = _xlCache[t];
   if(!forcar && c && Date.now() - c.t < 3000) return JSON.parse(c.json);
   var cfg = XLT[t], raw = await xlRaw(t), out = [], sigs = {}, reais = {};
@@ -1198,7 +1198,7 @@ async function xlSelect(t, forcar){
   xlAplicarRecentes(t, out, reais);
   Object.keys(sigs).forEach(function(id){ if(!out.some(function(r){ return r.id === id; })) delete sigs[id]; });
   out.forEach(function(r){ if(sigs[r.id] === undefined) sigs[r.id] = xlSig(t, r); });
-  _xlBaseSig[t] = sigs;
+  if(!semBase) _xlBaseSig[t] = sigs;     /* leitura só de conferência (semBase) não pode "atualizar" o que a tela considera já salvo */
   _xlCache[t] = { t: Date.now(), json: JSON.stringify(out) };
   return out;
 }
@@ -1212,9 +1212,12 @@ function xlFiltrarPapel(t, rows){
   return rows;
 }
 /* escritas: uma de cada vez (fila), cada lote numa sessão persistente do Excel */
+var _escritasPend = 0, _opsLocais = 0;     /* gravações na fila / operações do usuário em curso: enquanto houver, a atualização em segundo plano não troca os dados da tela */
 function xlEnfileirar(fn){
+  _escritasPend++;
   var p = _xlFila.then(function(){ return xlComSessao(fn); });
   _xlFila = p.catch(function(){});
+  p.then(function(){ _escritasPend--; }, function(){ _escritasPend--; });
   return p;
 }
 async function xlComSessao(fn){
@@ -1311,6 +1314,7 @@ XQ.prototype.delete = function(){ this.op = 'delete'; return this; };
 XQ.prototype.eq = function(c, v){ this.f.push([c, v]); return this; };
 XQ.prototype.single = function(){ this.one = 'single'; return this; };
 XQ.prototype.maybeSingle = function(){ this.one = 'maybe'; return this; };
+XQ.prototype.semBase = function(){ this._semBase = true; return this; };
 XQ.prototype.then = function(a, b){ return this._run().then(a, b); };
 XQ.prototype._filtra = function(rows){
   return this.f.reduce(function(acc, ff){ return acc.filter(function(r){ return String(r[ff[0]]) === String(ff[1]); }); }, rows);
@@ -1320,7 +1324,7 @@ XQ.prototype._run = async function(){
     var t = this.t, data;
     if(!XLT[t]) throw new Error('Tabela desconhecida: ' + t);
     if(this.op === 'select'){
-      data = this._filtra(xlFiltrarPapel(t, await xlSelect(t, false)));
+      data = this._filtra(xlFiltrarPapel(t, await xlSelect(t, false, this._semBase)));
     } else if(this.op === 'upsert' || this.op === 'insert'){
       /* decide AGORA, antes de qualquer espera, o que mudou desde a última leitura: assim uma
          tela desatualizada nunca regrava por cima do que outra pessoa salvou */
@@ -1552,7 +1556,9 @@ function algumCampoEmEdicao(){
 async function atualizarDadosDoServidorSilenciosamente(){
   try{
     if(state.session){
+      if(_escritasPend > 0 || _opsLocais > 0) return;     /* há gravação em andamento: trocar os dados agora apagaria da tela o que ainda não chegou na planilha */
       var res = await planilha.from('processos').select('*');
+      if(_escritasPend > 0 || _opsLocais > 0) return;     /* uma gravação começou durante a leitura: essa leitura já está velha */
       if(!res.error && res.data){
         state.processes = res.data.map(rowParaProcesso);
         if(!algumCampoEmEdicao()) render();
@@ -1710,6 +1716,11 @@ function docParaProcesso(p){
 }
 
 async function salvarProcessoNoServidor(processo, ehNovo){
+  _opsLocais++;
+  try{ return await salvarProcessoNoServidorInterno(processo, ehNovo); }
+  finally{ _opsLocais--; }
+}
+async function salvarProcessoNoServidorInterno(processo, ehNovo){
   /* Grava (ou atualiza) um processo na planilha. ehNovo=true é a criação; sem ele é a atualização de um
      processo que já existe. Só a equipe logada chega aqui: o cliente sem conta envia o pedido pelo fluxo
      "Criar" do Power Automate (ver enviarSolicitacaoPublica). Uma gravação que não devolve linha nenhuma
@@ -1727,7 +1738,7 @@ async function salvarProcessoNoServidor(processo, ehNovo){
          antes de gravar, buscamos o histórico mais recente do servidor e mesclamos
          com o histórico local, mantendo qualquer entrada nova de ambos os lados. */
       try{
-        var atual = await planilha.from('processos').select('dados').eq('id', processo.id).maybeSingle();
+        var atual = await planilha.from('processos').select('dados').eq('id', processo.id).semBase().maybeSingle();
         if(!atual.error && atual.data && atual.data.dados && Array.isArray(atual.data.dados.historico)){
           var histServidor = atual.data.dados.historico;
           var histLocal = Array.isArray(processo.historico) ? processo.historico : [];
@@ -4350,24 +4361,28 @@ function renderSolicitacaoBlock(p, clientMode){
   '</div>';
 }
 async function anexarDocPendente(processId, idx){
-  var p = state.processes.filter(function(x){return x.id===processId;})[0];
   var input = document.getElementById('pend-'+processId+'-'+idx);
-  if(!p || !input || !input.files || !input.files[0]) return;
+  if(!input || !input.files || !input.files[0]) return;
   var file = input.files[0];
   toast('Enviando arquivo...');
+  _opsLocais++;      /* segura a atualização em segundo plano durante o envio e a gravação */
   try{
     var doc = await uploadArquivoReal(file, processId, 'pendentes');
-    var snapshot = JSON.parse(JSON.stringify(p));
-    p.solicitacaoDocs[idx].arquivo = file.name;
-    p.solicitacaoDocs[idx].path = doc.path;
-    p.historico.push({data:todayISO(), hora:nowHM(), texto:'Documento "'+p.solicitacaoDocs[idx].nome+'" anexado pelo cliente: '+file.name+'.', autor:'cliente'});
+    var p = state.processes.filter(function(x){return x.id===processId;})[0];     /* buscado DEPOIS do envio (a tela pode ter sido atualizada) */
+    if(!p || !p.solicitacaoDocs || !p.solicitacaoDocs[idx]){ toast('O arquivo foi enviado, mas o item não foi encontrado na tela. Atualize a página e confira.'); return; }
+    var item = p.solicitacaoDocs[idx], antes = {arquivo:item.arquivo, path:item.path};
+    var entrada = {data:todayISO(), hora:nowHM(), texto:'Documento "'+item.nome+'" anexado pelo cliente: '+file.name+'.', autor:'cliente'};
+    item.arquivo = file.name;
+    item.path = doc.path;
+    p.historico.push(entrada);
     saveState();
     render();
     var ok = await salvarProcessoNoServidor(p);
     if(ok){
       toast('Documento anexado!');
     } else {
-      Object.assign(p, snapshot);
+      item.arquivo = antes.arquivo; item.path = antes.path;
+      p.historico = p.historico.filter(function(h){ return h !== entrada; });
       saveState();
       render();
       toast('O arquivo foi enviado, mas não foi possível atualizar o processo. Tente novamente.');
@@ -4375,6 +4390,8 @@ async function anexarDocPendente(processId, idx){
   }catch(e){
     console.error(e);
     toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
+  }finally{
+    _opsLocais--;
   }
 }
 
@@ -4873,30 +4890,35 @@ async function confirmarReiniciarProcesso(id){
   }
 }
 async function anexarDocumento(id, categoria){
-  var p = state.processes.filter(function(x){return x.id===id;})[0];
   var input = document.getElementById('anexo-'+categoria+'-'+id);
-  if(!p || !input || !input.files || !input.files[0]) return;
+  if(!input || !input.files || !input.files[0]) return;
   var file = input.files[0];
   var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
   var subpasta = categoria==='andamento' ? 'andamento' : 'finais';
   toast('Enviando arquivo...');
+  _opsLocais++;      /* segura a atualização em segundo plano durante o envio e a gravação */
   try{
     var doc = await uploadArquivoReal(file, id, subpasta);
-    var snapshot = JSON.parse(JSON.stringify(p));
-    p[campo].push(doc);
-    saveState(); render();
+    /* o processo é buscado DEPOIS do envio: durante o envio a tela pode ter sido atualizada e a cópia antiga já não é a que aparece */
+    var p = state.processes.filter(function(x){return x.id===id;})[0];
+    if(!p){ toast('O arquivo foi enviado, mas o processo não foi encontrado na tela. Atualize a página e confira.'); return; }
+    p[campo] = (p[campo] || []).concat([doc]);
+    render();
     var ok = await salvarProcessoNoServidor(p);
     if(ok){
       toast('Documento '+(categoria==='andamento'?'de andamento':'final')+' anexado.');
     } else {
-      Object.assign(p, snapshot);
-      saveState();
+      /* tira só este documento: restaurar o processo inteiro apagaria também outro anexo feito enquanto este gravava */
+      p[campo] = (p[campo] || []).filter(function(d){ return d !== doc; });
       render();
-      toast('O arquivo foi enviado, mas não foi possível atualizar o processo. Tente novamente.');
+      toast('O arquivo foi enviado, mas não foi possível atualizar o processo. Anexe novamente.');
     }
   }catch(e){
     console.error(e);
     toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
+  }finally{
+    _opsLocais--;
+    try{ input.value = ''; }catch(_){}
   }
 }
 
@@ -6273,7 +6295,7 @@ async function dispararEmail(p){
   var ev = p.emailPendente && p.emailPendente.evento;
   if(!ev) return;
   if(!CLIENTE_API.email){ toast('A etapa foi atualizada, mas o envio de e-mail ainda não está configurado.'); return; }
-  var ultimo = null;
+  var ultimo = null, erroDeRede = false;
   for(var t = 1; t <= 3; t++){
     var ctl = new AbortController(), tm = setTimeout(function(){ ctl.abort(); }, 30000);
     try{
@@ -6282,9 +6304,16 @@ async function dispararEmail(p){
       var j = await resp.json();
       if(j && j.ok === true) return;
       throw new Error('resposta: ' + (j && j.erro));
-    }catch(e){ ultimo = e; console.error('Aviso de e-mail (tentativa ' + t + '):', e); }
+    }catch(e){
+      ultimo = e; console.error('Aviso de e-mail (tentativa ' + t + '):', e);
+      if(!/^resposta:/.test(String(e && e.message))) erroDeRede = true;     /* HTTP/timeout: o fluxo pode ter enviado mesmo assim */
+    }
     finally{ clearTimeout(tm); }
-    if(t < 3) await msEspera(1500 * t);
+    if(t < 3) await msEspera(/pedido_invalido/.test(String(ultimo && ultimo.message)) ? 4000 * t : 1500 * t);   /* a planilha pode demorar a refletir a gravação */
+  }
+  if(erroDeRede && /pedido_invalido/.test(String(ultimo && ultimo.message))){
+    toast('A etapa foi atualizada. A 1ª tentativa de enviar o e-mail deu erro e as seguintes foram recusadas — o e-mail pode já ter sido enviado. Confirme com o cliente antes de reenviar por outro meio.');
+    return;
   }
   toast('A etapa foi atualizada, mas o e-mail ao cliente não foi disparado ('+cortar(ultimo && ultimo.message, 80)+'). Avise o cliente por outro meio.');
 }
@@ -6519,6 +6548,13 @@ async function confirmarIncluirProcessoManual(){
 /* =========================================================
    7) EXPOSIÇÃO GLOBAL + INIT
    ========================================================= */
+/* fluxos que leem, esperam e só depois gravam: seguram a atualização em segundo plano do começo ao fim */
+function comOpLocal(orig){ return async function(){ _opsLocais++; try{ return await orig.apply(this, arguments); } finally{ _opsLocais--; } }; }
+aprovarSolicitacao = comOpLocal(aprovarSolicitacao);
+confirmarRecusa = comOpLocal(confirmarRecusa);
+reabrirSolicitacao = comOpLocal(reabrirSolicitacao);
+confirmarExcluirArquivo = comOpLocal(confirmarExcluirArquivo);
+executarAvancoEtapa = comOpLocal(executarAvancoEtapa);
 window.PS = {
   abrirModalEmailCliente: abrirModalEmailCliente, salvarEmailCliente: salvarEmailCliente,
   entrarFuncionario: entrarFuncionario, homeAbrirCliente: homeAbrirCliente, homeVoltar: homeVoltar,
