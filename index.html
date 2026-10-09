@@ -6309,7 +6309,7 @@ async function dispararEmail(p){
       if(!/^resposta:/.test(String(e && e.message))) erroDeRede = true;     /* HTTP/timeout: o fluxo pode ter enviado mesmo assim */
     }
     finally{ clearTimeout(tm); }
-    if(t < 3) await msEspera(/pedido_invalido/.test(String(ultimo && ultimo.message)) ? 4000 * t : 1500 * t);   /* a planilha pode demorar a refletir a gravação */
+    if(t < 3) await msEspera(1500 * t);
   }
   if(erroDeRede && /pedido_invalido/.test(String(ultimo && ultimo.message))){
     toast('A etapa foi atualizada. A 1ª tentativa de enviar o e-mail deu erro e as seguintes foram recusadas — o e-mail pode já ter sido enviado. Confirme com o cliente antes de reenviar por outro meio.');
