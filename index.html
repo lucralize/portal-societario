@@ -910,7 +910,7 @@ var SEED_VERSION = 8; /* aumentar sempre que a estrutura inicial dos dados de ex
    sozinha o HTML/JS de novo — isso vinha causando a impressão de que correções
    já publicadas "não tinham funcionado", quando na verdade a aba só estava
    rodando a versão antiga. */
-var BUILD_ID = '20261008-anexos1';
+var BUILD_ID = '20261021-quadro1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
    O app chama "planilha.*", com a mesma forma de uma API de banco de dados
@@ -2410,7 +2410,7 @@ var PERGUNTAS_POR_SERVICO = {
     '↳ Se Endereço, Atividades Econômicas ou Nome Empresarial: guia de IPTU (upload ou índice cadastral digitado)',
     '↳ Se Quadro Societário: como ficará a divisão do quadro societário após a alteração',
     '↳ Se Capital Social: novo valor do capital social e divisão percentual entre os sócios',
-    '↳ Se Quadro Societário ou Capital Social: dados de cada sócio envolvido (nome, título de eleitor, endereço, documento com foto, estado civil/regime, IR 2025 e 2026)',
+    '↳ Se Quadro Societário ou Capital Social: dados de cada sócio envolvido (nome, endereço, documento com foto, estado civil/regime). Título de eleitor e IR 2025 e 2026 só são pedidos quando for apenas Capital Social',
     '↳ Se Nome Empresarial: razão social desejada, e novo nome fantasia (se também quiser alterar)',
     'Confirmação de ciência sobre o serviço prestado (não inclui retirada de alvará)'
   ],
@@ -2662,7 +2662,7 @@ function fabSocioBlockHtml(idx, data){
       '<input type="text" id="fab-s'+idx+'-nome" value="'+esc(data.nome||'')+'" oninput="PS.fabNomeSocioChanged('+idx+')" placeholder="Nome completo"></div>'+
     '<div id="fab-socio-'+idx+'-resto" style="display:'+(data.nome?'flex':'none')+'; flex-direction:column; gap:.9rem;">'+
       '<div class="form-grid">'+
-        '<div class="field"><label>Título de eleitor <span class="req-mark">*</span></label><input type="text" id="fab-s'+idx+'-titulo" value="'+esc(data.titulo||'')+'"></div>'+
+        '<div class="field" id="fab-s'+idx+'-titulo-wrap"><label>Título de eleitor <span class="req-mark">*</span></label><input type="text" id="fab-s'+idx+'-titulo" value="'+esc(data.titulo||'')+'"></div>'+
         '<div class="field full"><label>Endereço completo <span class="req-mark">*</span></label><input type="text" id="fab-s'+idx+'-endereco" value="'+esc(data.endereco||'')+'" placeholder="Rua, número, bairro, cidade, UF, CEP"></div>'+
         '<div class="field"><label>Estado civil <span class="req-mark">*</span></label><select id="fab-s'+idx+'-civil" onchange="PS.fabToggleEstadoCivil('+idx+')">'+civilOptionsHtml+'</select></div>'+
         '<div class="field" id="fab-s'+idx+'-regime-wrap" style="display:'+(showRegime?'flex':'none')+';"><label>Regime de casamento <span class="req-mark">*</span></label><select id="fab-s'+idx+'-regime">'+regimeOptionsHtml+'</select></div>'+
@@ -2670,7 +2670,7 @@ function fabSocioBlockHtml(idx, data){
       '<div class="upload-row"><div class="upload-row-label"><span class="req-dot"></span>Documento de identificação com foto (RG ou CNH) <span class="req-mark">*</span></div>'+
         '<label class="file-picker" for="fab-s'+idx+'-foto"><span class="ic">⬆</span><span class="txt" id="fab-s'+idx+'-foto-txt">Anexar arquivo</span></label>'+
         '<input type="file" id="fab-s'+idx+'-foto" style="display:none;" onchange="PS.fabFileChosen(\'fab-s'+idx+'-foto\')"></div>'+
-      '<div class="field">'+
+      '<div class="field" id="fab-s'+idx+'-ir-bloco">'+
         '<label>Recibo da última declaração de IR (caso houver)</label>'+
         '<p style="font-size:.78rem; color:var(--ink-faint); margin:0;">Se preenchido, é necessário informar os dois anos-calendário: 2025 e 2026.</p>'+
         '<div class="radio-group">'+
@@ -2710,6 +2710,22 @@ function fabFileChosen(inputId){
     if(row) row.classList.remove('attached');
   }
 }
+/* Alteração Contratual com "Quadro Societário" marcado: não pede título de eleitor nem IR 2025/2026 dos sócios.
+   (Vale só para os blocos de sócio dentro de #alt-socios-container; a Abertura de CNPJ continua pedindo.) */
+function fabSemTituloIR(i){
+  var el = document.getElementById('fab-socio-'+i);
+  if(!el || !el.closest || !el.closest('#alt-socios-container')) return false;
+  return !!(document.getElementById('alt-tipo-quadro')||{}).checked;
+}
+function altAplicarCamposSocio(){
+  var i = 1;
+  while(document.getElementById('fab-socio-'+i)){
+    var off = fabSemTituloIR(i);
+    var t = document.getElementById('fab-s'+i+'-titulo-wrap'); if(t) t.style.display = off ? 'none' : '';
+    var ir = document.getElementById('fab-s'+i+'-ir-bloco'); if(ir) ir.style.display = off ? 'none' : '';
+    i++;
+  }
+}
 function fabNomeSocioChanged(idx){
   var nomeEl = document.getElementById('fab-s'+idx+'-nome');
   var resto = document.getElementById('fab-socio-'+idx+'-resto');
@@ -2742,16 +2758,16 @@ function fabColetarSocios(){
   while(document.getElementById('fab-s'+i+'-nome')){
     out.push({
       nome: document.getElementById('fab-s'+i+'-nome').value.trim(),
-      titulo: (document.getElementById('fab-s'+i+'-titulo')||{}).value || '',
+      titulo: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-titulo')||{}).value || ''),
       endereco: (document.getElementById('fab-s'+i+'-endereco')||{}).value || '',
       estadoCivil: (document.getElementById('fab-s'+i+'-civil')||{}).value || '',
       regime: (document.getElementById('fab-s'+i+'-regime')||{}).value || '',
       fotoArquivo: fabArquivoNome('fab-s'+i+'-foto'),
-      irModo: (document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked')||{}).value || '',
-      irArquivo2025: fabArquivoNome('fab-s'+i+'-ir-2025'),
-      irArquivo2026: fabArquivoNome('fab-s'+i+'-ir-2026'),
-      irNumero2025: (document.getElementById('fab-s'+i+'-ir-numero-2025')||{}).value || '',
-      irNumero2026: (document.getElementById('fab-s'+i+'-ir-numero-2026')||{}).value || ''
+      irModo: fabSemTituloIR(i) ? '' : ((document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked')||{}).value || ''),
+      irArquivo2025: fabSemTituloIR(i) ? null : fabArquivoNome('fab-s'+i+'-ir-2025'),
+      irArquivo2026: fabSemTituloIR(i) ? null : fabArquivoNome('fab-s'+i+'-ir-2026'),
+      irNumero2025: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-ir-numero-2025')||{}).value || ''),
+      irNumero2026: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-ir-numero-2026')||{}).value || '')
     });
     i++;
   }
@@ -2768,16 +2784,16 @@ async function fabColetarSociosReal(processoId){
   while(document.getElementById('fab-s'+i+'-nome')){
     out.push({
       nome: document.getElementById('fab-s'+i+'-nome').value.trim(),
-      titulo: (document.getElementById('fab-s'+i+'-titulo')||{}).value || '',
+      titulo: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-titulo')||{}).value || ''),
       endereco: (document.getElementById('fab-s'+i+'-endereco')||{}).value || '',
       estadoCivil: (document.getElementById('fab-s'+i+'-civil')||{}).value || '',
       regime: (document.getElementById('fab-s'+i+'-regime')||{}).value || '',
       fotoArquivo: await fabArquivoReal('fab-s'+i+'-foto', processoId, 'socio'+i+'-foto'),
-      irModo: (document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked')||{}).value || '',
-      irArquivo2025: await fabArquivoReal('fab-s'+i+'-ir-2025', processoId, 'socio'+i+'-ir2025'),
-      irArquivo2026: await fabArquivoReal('fab-s'+i+'-ir-2026', processoId, 'socio'+i+'-ir2026'),
-      irNumero2025: (document.getElementById('fab-s'+i+'-ir-numero-2025')||{}).value || '',
-      irNumero2026: (document.getElementById('fab-s'+i+'-ir-numero-2026')||{}).value || ''
+      irModo: fabSemTituloIR(i) ? '' : ((document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked')||{}).value || ''),
+      irArquivo2025: fabSemTituloIR(i) ? null : await fabArquivoReal('fab-s'+i+'-ir-2025', processoId, 'socio'+i+'-ir2025'),
+      irArquivo2026: fabSemTituloIR(i) ? null : await fabArquivoReal('fab-s'+i+'-ir-2026', processoId, 'socio'+i+'-ir2026'),
+      irNumero2025: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-ir-numero-2025')||{}).value || ''),
+      irNumero2026: fabSemTituloIR(i) ? '' : ((document.getElementById('fab-s'+i+'-ir-numero-2026')||{}).value || '')
     });
     i++;
   }
@@ -3226,6 +3242,7 @@ function altRegenerarSocios(){
   var html = '';
   for(var i=1;i<=n;i++){ html += fabSocioBlockHtml(i, existentes[i-1]||{}); }
   container.innerHTML = html;
+  altAplicarCamposSocio();
 }
 function altToggleTipos(){
   var endereco = !!(document.getElementById('alt-tipo-endereco')||{}).checked;
@@ -3254,6 +3271,7 @@ function altToggleTipos(){
   if((quadro || capital) && container && !container.innerHTML.trim()){
     altRegenerarSocios();
   }
+  altAplicarCamposSocio();     // Quadro Societário marcado → esconde título de eleitor e IR (sem apagar o que já foi anexado)
 
   var algumSelecionado = endereco || quadro || atividades || capital || nome;
   var errBox = document.getElementById('alt-tipo-erro');
@@ -3455,10 +3473,10 @@ function altValidar(servicoId){
     var n = altNumSocios();
     for(var i=1;i<=n;i++){
       req('fab-s'+i+'-nome', 'Nome completo do sócio '+i);
-      req('fab-s'+i+'-titulo', 'Título de eleitor do sócio '+i);
+      if(!quadro) req('fab-s'+i+'-titulo', 'Título de eleitor do sócio '+i);     // com Quadro Societário marcado não pede título nem IR
       req('fab-s'+i+'-endereco', 'Endereço completo do sócio '+i);
       reqFile('fab-s'+i+'-foto', 'Documento de identificação com foto do sócio '+i);
-      var irModo = document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked');
+      var irModo = quadro ? null : document.querySelector('input[name="fab-s'+i+'-ir-modo"]:checked');
       if(irModo){
         if(irModo.value==='arquivo'){
           reqFile('fab-s'+i+'-ir-2025', 'Upload do recibo de IR 2025 do sócio '+i);
