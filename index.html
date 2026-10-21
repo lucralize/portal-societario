@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Política de segurança: a página só conversa com a Microsoft (login, Graph, SharePoint) e com os fluxos do Power Automate.
+     Se algum dado malicioso conseguir rodar código aqui, ele não consegue mandar nada para fora desses endereços.
+     Ao integrar um serviço novo, inclua o endereço dele em connect-src. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.sharepoint.com https://default5173aa8366e149f39128f2251b4329.4d.environment.api.powerplatform.com; frame-src 'self' https://login.microsoftonline.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>Societário — Lucralize</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Poppins:wght@400;500;600;700&display=swap">
 <style>
@@ -120,32 +125,11 @@
     radial-gradient(1200px 600px at 15% -10%, var(--primary-soft), transparent 60%),
     radial-gradient(900px 500px at 110% 10%, var(--primary-soft), transparent 55%),
     var(--bg);}
-  .login-grid{display:grid; grid-template-columns:1.05fr 1fr; gap:0; max-width:960px; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-l); overflow:hidden; box-shadow:var(--shadow);}
-  .login-pitch{
-    background:
-      radial-gradient(1100px 720px at 6% -8%, rgba(12,116,136,.9), transparent 55%),
-      radial-gradient(820px 620px at 46% 18%, rgba(12,116,136,.4), transparent 62%),
-      linear-gradient(155deg, var(--chrome) 0%, var(--chrome-strong) 78%);
-    color:#fff; padding:2.8rem 2.4rem; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1.9rem;
-  }
-  .login-pitch .brand-logo{height:38px; width:auto; display:block; margin:0 auto;}
-  .login-pitch h1{color:#fff; font-size:1.05rem; font-weight:500; line-height:1.5; max-width:320px; color:rgba(255,255,255,.85);}
-  .login-pitch p{color:rgba(255,255,255,.78); font-size:.93rem; line-height:1.55;}
-  .login-features{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.7rem; width:100%; max-width:320px;}
-  .login-features li{display:flex; align-items:center; gap:.85rem; padding:.8rem .95rem; border-radius:var(--radius-m); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); text-align:left;}
-  .login-features .ic{width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); display:flex; align-items:center; justify-content:center; flex:none; font-size:1rem; color:var(--brand-cyan);}
-  .login-features .txt{font-size:.83rem; font-weight:600; color:rgba(255,255,255,.92); line-height:1.35;}
-  .login-form-side{padding:2.6rem 2.4rem; display:flex; flex-direction:column; gap:1.4rem;}
-  .proto-badge{align-self:flex-start; font-size:.68rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--primary-strong); background:var(--primary-soft); padding:.3em .7em; border-radius:999px;}
   .field{display:flex; flex-direction:column; gap:.4rem;}
   .field label{font-size:.78rem; font-weight:600; color:var(--ink-soft);}
   .field input, .field textarea, .field select{padding:.65em .8em; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.92rem; font-family:inherit;}
   .field textarea{resize:vertical; line-height:1.5;}
   .field input:disabled{color:var(--ink-faint);}
-  .login-form-side .field label{font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint);}
-  .login-form-side .field input{padding:.8em .9em; font-size:.95rem;}
-  .link-esqueci{background:none; border:none; padding:.2rem; color:var(--primary); font-size:.85rem; font-weight:600; font-family:inherit; cursor:pointer; text-align:center;}
-  .link-esqueci:hover{text-decoration:underline; color:var(--primary-strong);}
 
   .q-block{display:flex; flex-direction:column; gap:.6rem; padding:1.05rem 1.1rem; border:1px solid var(--border); border-radius:var(--radius-m); background:var(--surface-2);}
   .q-block .q-title{font-size:.9rem; font-weight:700; color:var(--ink); line-height:1.4;}
@@ -171,20 +155,11 @@
   .file-picker:hover{border-color:var(--primary); color:var(--primary);}
   .upload-row.attached .file-picker{color:var(--success); border-color:var(--success);}
   .file-picker .txt{overflow:hidden; text-overflow:ellipsis;}
-  .divider-label{display:flex; align-items:center; gap:.75rem; color:var(--ink-faint); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;}
-  .divider-label::before, .divider-label::after{content:''; flex:1; height:1px; background:var(--border);}
-  .demo-list{display:flex; flex-direction:column; gap:.55rem;}
-  .demo-card{display:flex; align-items:center; gap:.75rem; text-align:left; padding:.7rem .8rem; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--surface);}
-  .demo-card:hover{border-color:var(--primary); background:var(--primary-soft);}
-  .demo-avatar{width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; flex:none;}
-  .demo-meta{display:flex; flex-direction:column; gap:.1rem; min-width:0;}
-  .demo-meta strong{font-size:.86rem;}
-  .demo-meta span{font-size:.75rem; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .avatar{width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.78rem; flex:none;}
   .role-chip{margin-left:auto; font-size:.65rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:.25em .55em; border-radius:999px; flex:none;}
   .role-chip.cliente{background:var(--primary-soft); color:var(--primary);}
   .role-chip.admin{background:var(--chrome); color:#fff;}
   .role-chip.colaborador{background:var(--warning-bg); color:var(--warning);}
-  .role-chip.freelancer{background:var(--success-bg); color:var(--success);}
 
   /* ---------- App shell ---------- */
   .shell{display:grid; grid-template-columns:248px 1fr; min-height:100vh;}
@@ -193,7 +168,6 @@
   .brand .brand-logo{height:34px; width:auto; display:block; margin:0 auto;}
   .brand .brand-caption{font-family:var(--font-display); font-weight:700; font-size:.86rem; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.72);}
   .nav-group{display:flex; flex-direction:column; gap:.2rem;}
-  .nav-label{font-size:.66rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.45); padding:.4rem .6rem 0;}
   .nav-item{display:flex; align-items:center; gap:.65rem; padding:.6rem .7rem; border-radius:var(--radius-s); color:rgba(255,255,255,.82); font-size:.87rem; font-weight:500; background:transparent; border:none; text-align:left; width:100%;}
   .nav-item .ic{width:18px; text-align:center; flex:none;}
   .nav-item:hover{background:rgba(255,255,255,.08); color:#fff;}
@@ -201,7 +175,7 @@
   .nav-item.active::before{content:''; }
   .sidebar-foot{margin-top:auto; display:flex; flex-direction:column; gap:.6rem; border-top:1px solid rgba(255,255,255,.14); padding-top:1rem;}
   .user-pill{display:flex; align-items:center; gap:.6rem;}
-  .user-pill .demo-avatar{background:rgba(255,255,255,.16); color:#fff;}
+  .user-pill .avatar{background:rgba(255,255,255,.16); color:#fff;}
   .user-pill .who{min-width:0;}
   .user-pill .who strong{display:block; font-size:.82rem; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .user-pill .who span{font-size:.72rem; color:rgba(255,255,255,.6);}
@@ -237,7 +211,6 @@
   .kpi .value{font-family:var(--font-display); font-size:1.7rem; font-weight:700;}
   .kpi .sub{font-size:.72rem; color:var(--ink-faint);}
 
-  .kpi-mes-head{display:flex; align-items:center; justify-content:space-between; gap:.5rem;}
   .kpi-mes-nav{display:flex; align-items:center; gap:.25rem; flex:none;}
   .kpi-mes-nav button{width:22px; height:22px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); font-size:.85rem; line-height:1; display:flex; align-items:center; justify-content:center; padding:0;}
   .kpi-mes-nav button:hover{border-color:var(--primary); color:var(--primary);}
@@ -332,9 +305,6 @@
 
   .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:.9rem;}
   .form-grid .full{grid-column:1 / -1;}
-  .filtro-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:.9rem;}
-  @media (max-width:900px){ .filtro-grid{grid-template-columns:1fr 1fr;} }
-  @media (max-width:560px){ .filtro-grid{grid-template-columns:1fr;} }
 
   th input.th-filtro, th select.th-filtro{display:block; width:100%; margin-top:.5rem; font-size:.76rem; font-weight:500; text-transform:none; letter-spacing:normal; color:var(--ink); padding:.4em .55em; border-radius:6px; border:1px solid var(--border); background:var(--surface); font-family:inherit;}
 
@@ -345,8 +315,6 @@
     .sidebar{position:relative; height:auto; flex-direction:row; align-items:center; flex-wrap:wrap;}
     .sidebar-foot{margin-top:0; margin-left:auto; border:none; padding:0;}
     .nav-group{flex-direction:row; flex-wrap:wrap;}
-    .login-grid{grid-template-columns:1fr;}
-    .login-pitch{display:none;}
     .kpi-grid{grid-template-columns:repeat(2,1fr);}
     .form-grid{grid-template-columns:1fr;}
     .content{padding:1.2rem;}
@@ -417,10 +385,37 @@
 
 <div id="app"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2/lib/msal-browser.min.js"></script>
+<!-- Biblioteca de login da Microsoft. A versão é fixa e o "integrity" garante que o navegador só roda exatamente este
+     arquivo: se o CDN servir outro conteúdo, o script é bloqueado. Ao trocar de versão, atualize o hash junto. -->
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.39.0/lib/msal-browser.min.js" integrity="sha384-HtsDY8wVihpnviltxuJhKpX0ahqMUgvnzrXcW39KBNui4JooW+YJb1YxvQmNoFDZ" crossorigin="anonymous"></script>
 <script>
 (function(){
 "use strict";
+/* =====================================================================================================
+   PORTAL SOCIETÁRIO — LUCRALIZE
+   -----------------------------------------------------------------------------------------------------
+   Página única (este arquivo), publicada no GitHub Pages. Duas áreas:
+   • Cliente, sem login: escolhe o serviço, preenche o formulário e recebe um código de acompanhamento
+     (0000-0000-0000) para consultar o andamento. Ele nunca acessa a planilha: tudo passa por fluxos do
+     Power Automate (CLIENTE_API: Criar, Consultar, Enviar arquivo, Enviar e-mail).
+   • Equipe, com conta Microsoft: lê e grava a planilha PortalSocietario.xlsx e a pasta Documentos no
+     SharePoint pelo Microsoft Graph (objeto "planilha"). Só entra quem está na tabela Usuarios, ativo e
+     com perfil admin ou colaborador. Colaborador vê só os processos atribuídos a ele e não vê "Usuários".
+
+   SEGURANÇA — o que vem do cliente nunca é confiável (qualquer pessoa pode chamar o fluxo Criar):
+   • todo texto vai para a tela com esc(); dentro de onclick="…" com jsArg();
+   • ids lidos da planilha precisam passar em ID_SEGURO; datas só aparecem se estiverem em AAAA-MM-DD;
+   • a Content-Security-Policy no <head> só deixa a página falar com a Microsoft e com os fluxos.
+
+   AO PUBLICAR: troque o BUILD_ID (seção VERSÃO PUBLICADA).
+
+   SEÇÕES (procure pelo título):
+     CATÁLOGO DE SERVIÇOS · ESTADO DA TELA · VERSÃO PUBLICADA · CAMADA DE DADOS · UTILITÁRIOS ·
+     NAVEGAÇÃO, LOGIN E INICIALIZAÇÃO · MONTAGEM DA TELA · ÁREA PÚBLICA · TELA DA EQUIPE · CATÁLOGO NA TELA ·
+     FORMULÁRIOS DE SOLICITAÇÃO DO CLIENTE · DETALHE DO PROCESSO · TELAS DA EQUIPE · REGRAS DE SERVIÇO ·
+     CÓDIGO DE ACOMPANHAMENTO · ÁREA DO CLIENTE · SOLICITAÇÃO PELO CLIENTE · ANEXOS DO CLIENTE ·
+     E-MAIL AO CLIENTE · ATIVIDADES (CNAE) · RESPONSÁVEIS… · FUNÇÕES CHAMADAS PELOS BOTÕES · INICIALIZAÇÃO
+   ===================================================================================================== */
 
 var LOGO_DATA_URI_LINK_PUBLICO = "data:image/png;base64," +
   "iVBORw0KGgoAAAANSUhEUgAAA4QAAAFWBAMAAADDCU4FAAAA" +
@@ -692,7 +687,8 @@ var LOGO_DATA_URI = "data:image/png;base64," +
   "+WAxADgfLAYAbwASA4C3AIUBwBH8D/km6lacA7hjAAAAAElFTkSuQmCC";
 
 /* =========================================================
-   1) DADOS — Catálogo de serviços (Tabela de Honorários)
+   CATÁLOGO DE SERVIÇOS (Tabela de Honorários)
+   Preços, prazos, documentos e etapas de cada serviço. Mudanças de preço ou de etapa são feitas aqui.
    ========================================================= */
 var SERVICES = [
   {
@@ -714,7 +710,7 @@ var SERVICES = [
     id:'transformacao-mei-me', categoria:'Abertura e Transformação de CNPJ',
     nome:'Transformação de MEI',
     resumo:'Migração do registro de MEI (Microempreendedor Individual) para ME (Microempresa), mantendo o mesmo CNPJ.',
-    /* Sem valor de serviço — nem para cliente Tech, nem Contabilidade (pedido da Brenda). */
+    /* Sem valor de serviço — nem para cliente Tech, nem Contabilidade. */
     precos:null,
     prazoBoleto:{texto:'Em até 48 horas', confirmado:true},
     ocultarBoleto:true,
@@ -879,18 +875,17 @@ SERVICES.forEach(function(s){ SERVICE_MAP[s.id]=s; });
 var CATEGORY_ORDER = ['Abertura e Transformação de CNPJ','Alterações e Baixa da Empresa','Inscrições e credenciamentos','Licenças e representação','Regularização e comércio exterior'];
 
 /* =========================================================
-   2) DADOS — Empresas, usuários e processos
+   ESTADO DA TELA
+   Tudo o que a página tem em memória. Os dados vêm da planilha no login e são relidos em segundo plano.
    ========================================================= */
-function seedState(){
+function estadoInicial(){
   return {
-    seedVersion: SEED_VERSION,
     theme:'system',
     session:null, /* {userId} */
     view:{ name:'carregando' },
     visitante:null, /* {nome, telefone, email} — contato de quem usa o link público sem login */
     visitanteTipo:null, /* tipo societário informado pelo visitante no link público, para exibir valores exatos */
     visitanteFluxo:null, /* 'abertura_transformacao' | 'outros' — o que o visitante do link público escolheu na tela inicial */
-    nextOrdemSeq:1,
     companies:[],
     users:[],
     processes:[],
@@ -899,18 +894,12 @@ function seedState(){
 }
 
 /* =========================================================
-   3) ESTADO / PERSISTÊNCIA — planilha Excel no SharePoint (compartilhada
-   entre todos os usuários e dispositivos)
+   VERSÃO PUBLICADA
    ========================================================= */
 
-var SEED_VERSION = 8; /* aumentar sempre que a estrutura inicial dos dados de exemplo mudar, para forçar o reset automático de dados salvos antigos no navegador */
-/* Identificador da versão publicada — mudar a cada novo deploy. Usado só para
-   avisar quem já está com a tela aberta há um tempo que existe uma versão mais
-   nova (ver verificarNovaVersaoDisponivel), já que uma aba aberta nunca busca
-   sozinha o HTML/JS de novo — isso vinha causando a impressão de que correções
-   já publicadas "não tinham funcionado", quando na verdade a aba só estava
-   rodando a versão antiga. */
-var BUILD_ID = '20261021-quadro1';
+/* Identificador da versão publicada: TROQUE A CADA PUBLICAÇÃO. Quem estiver com o portal aberto recebe o aviso
+   "Existe uma versão mais nova" (ver verificarNovaVersaoDisponivel); sem trocar, a aba continua com o código antigo. */
+var BUILD_ID = '20261021-revisao1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
    O app chama "planilha.*", com a mesma forma de uma API de banco de dados
@@ -1083,7 +1072,6 @@ function xlCanon(v){
   if(v && typeof v === 'object') return '{' + Object.keys(v).sort().map(function(k){ return JSON.stringify(k) + ':' + xlCanon(v[k]); }).join(',') + '}';
   return JSON.stringify(v === undefined ? null : v);
 }
-function xlLimpaUsuario(d){ d = Object.assign({}, d); delete d.senhaProvisoria; delete d.senha; return d; }
 
 var XLT = {
   usuarios: {
@@ -1099,11 +1087,10 @@ var XLT = {
       d.ativo = !(ativo === 'não' || ativo === 'nao');
       var emp = String(c.EmpresaId || d.empresaId || '').trim() || null;
       d.empresaId = emp;
-      d = xlLimpaUsuario(d);
-      return { id: id, role: role, empresa_id: emp, senha_provisoria: false, dados: d };
+      return { id: id, role: role, empresa_id: emp, dados: d };
     },
     unshape: function(row){
-      var d = xlLimpaUsuario(row.dados || {});
+      var d = row.dados || {};
       return { Id: row.id, Role: row.role || d.role || '', Email: d.email || '', Nome: d.nome || '', Ativo: d.ativo === false ? 'Não' : 'Sim', EmpresaId: row.empresa_id || '', DadosJson: JSON.stringify(d) };
     }
   },
@@ -1174,6 +1161,10 @@ async function xlRaw(t){
   }
   return rows.map(function(x){ return x.values[0].map(function(v){ return v == null ? '' : v; }); });
 }
+/* Ids vão para atributos HTML e para o JavaScript dos botões; um id fora deste formato não é de uma linha
+   criada pelo portal ou pelos fluxos, e a linha é ignorada. */
+var ID_SEGURO = /^[A-Za-z0-9_.@+-]{1,120}$/;
+function xlIdSeguro(id){ id = String(id == null ? '' : id).trim(); return ID_SEGURO.test(id) ? id : ''; }
 function xlFindIdx(t, raw, id){
   var cfg = XLT[t];
   for(var i = 0; i < raw.length; i++){
@@ -1191,6 +1182,7 @@ async function xlSelect(t, forcar, semBase){
     if(xlBlank(arr)) return;
     var cells = xlCellsDe(cfg, arr), row = cfg.shape(cells);
     if(!row.id) return;
+    if(!xlIdSeguro(row.id)){ console.warn('Linha ignorada na tabela ' + cfg.tab + ': id em formato inválido.'); return; }
     sigs[row.id] = xlSig(t, row); reais[row.id] = sigs[row.id]; out.push(row);
     /* processo que já tem código mas cujas colunas Codigo/Publico estão vazias ou diferentes: marca para regravar no próximo salvamento */
     if(t === 'processos' && row.dados.codigoAcompanhamento && (String(cells.Codigo || '') !== row.dados.codigoAcompanhamento || !cells.Publico)) sigs[row.id] = '__atualizar_colunas__';
@@ -1201,15 +1193,6 @@ async function xlSelect(t, forcar, semBase){
   if(!semBase) _xlBaseSig[t] = sigs;     /* leitura só de conferência (semBase) não pode "atualizar" o que a tela considera já salvo */
   _xlCache[t] = { t: Date.now(), json: JSON.stringify(out) };
   return out;
-}
-/* O freelancer só enxerga os processos atribuídos a ele. (Atenção: isto é só de tela; o isolamento
-   real depende da permissão do arquivo no SharePoint.) */
-function xlFiltrarPapel(t, rows){
-  if(_xlUser && _xlUser.role === 'freelancer'){
-    if(t === 'processos') return rows.filter(function(r){ return r.responsavel_id === _xlUser.id; });
-    if(t === 'processos_excluidos') return [];
-  }
-  return rows;
 }
 /* escritas: uma de cada vez (fila), cada lote numa sessão persistente do Excel */
 var _escritasPend = 0, _opsLocais = 0;     /* gravações na fila / operações do usuário em curso: enquanto houver, a atualização em segundo plano não troca os dados da tela */
@@ -1300,8 +1283,8 @@ async function xlCriarUsuario(body){
   if(rows.some(function(r){ return xlNorm(r.dados.email) === email; })) return { data: { erro: 'Já existe um usuário com este e-mail.' }, error: null };
   var id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   var d = { id: id, nome: body.nome, email: String(body.email).trim(), telefone: body.telefone || '—', role: body.role, empresaId: null, ativo: true };
-  await xlGravar('usuarios', [{ id: id, role: body.role, empresa_id: null, senha_provisoria: false, dados: d }]);
-  return { data: { id: id, senha: '' }, error: null };
+  await xlGravar('usuarios', [{ id: id, role: body.role, empresa_id: null, dados: d }]);
+  return { data: { id: id }, error: null };
 }
 
 /* ---------- API de acesso aos dados (usada pelo app como "planilha.*") ---------- */
@@ -1324,7 +1307,7 @@ XQ.prototype._run = async function(){
     var t = this.t, data;
     if(!XLT[t]) throw new Error('Tabela desconhecida: ' + t);
     if(this.op === 'select'){
-      data = this._filtra(xlFiltrarPapel(t, await xlSelect(t, false, this._semBase)));
+      data = this._filtra(await xlSelect(t, false, this._semBase));
     } else if(this.op === 'upsert' || this.op === 'insert'){
       /* decide AGORA, antes de qualquer espera, o que mudou desde a última leitura: assim uma
          tela desatualizada nunca regrava por cima do que outra pessoa salvou */
@@ -1353,7 +1336,7 @@ XQ.prototype._run = async function(){
 };
 var planilha = {
   from: function(t){ return new XQ(t); },
-  rpc: async function(nome, args){
+  rpc: async function(nome){
     try{
       if(nome === 'gerar_ordem_servico') return { data: await xlProximaOS(), error: null };
       if(nome === 'liberar_numero_os') return { data: null, error: null };       /* a OS é calculada pelo maior número existente: ao apagar, o número volta sozinho */
@@ -1437,13 +1420,13 @@ async function baixarArquivoReal(path){
   try{
     var res = await planilha.arquivos.createSignedUrl(path, 3600);
     if(res.error || !res.data){ toast(res.error && /404/.test(res.error.message || '') ? 'Arquivo não encontrado na pasta. Se veio do cliente, o envio pode não ter terminado: peça para ele reenviar.' : 'Não foi possível gerar o link de download.'); return; }
-    window.open(res.data.signedUrl, '_blank');
+    window.open(res.data.signedUrl, '_blank', 'noopener');
   }catch(e){
     console.error(e);
     toast('Não foi possível gerar o link de download.');
   }
 }
-var state = seedState();
+var state = estadoInicial();
 var adminTipoFiltro = null;
 var adminMesConcluidos = todayISO().slice(0,7);
 var MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1452,8 +1435,8 @@ function dataConclusao(p){
   return p.criadoEm;
 }
 function formatMesAno(mesStr){
-  var partes = mesStr.split('-'), ano=partes[0], mes=parseInt(partes[1],10);
-  return MESES_PT[mes-1]+'/'+ano;
+  var m = /^(\d{4})-(\d{2})/.exec(String(mesStr || ''));
+  return m ? (MESES_PT[parseInt(m[2],10)-1] || m[2])+'/'+m[1] : '—';
 }
 function mudarMesConcluidos(delta){
   var partes = adminMesConcluidos.split('-');
@@ -1471,16 +1454,13 @@ function saveState(){
    e as linhas das tabelas da planilha (colunas de apoio + dados completos em JSON,
    para não perder nenhum campo aninhado) ---- */
 function usuarioParaRow(u){
-  var dados = Object.assign({}, u);
-  delete dados.senha;
-  return {id:u.id, role:u.role, empresa_id:u.empresaId||null, senha_provisoria: !!u.senhaProvisoria, dados:dados};
+  return {id:u.id, role:u.role, empresa_id:u.empresaId||null, dados:Object.assign({}, u)};
 }
 function rowParaUsuario(row){
   var u = Object.assign({}, row.dados);
   u.id = row.id;
   u.role = row.role;
   u.empresaId = row.empresa_id;
-  u.senhaProvisoria = row.senha_provisoria;
   return u;
 }
 function empresaParaRow(c){ return {id:c.id, dados:c}; }
@@ -1530,25 +1510,14 @@ async function carregarDadosAutenticados(authUserId){
   state.companies = (resultados[1].data||[]).map(rowParaEmpresa);
   state.processes = (resultados[2].data||[]).map(rowParaProcesso);
   state.processosExcluidos = (resultados[3].data||[]).map(rowParaExcluido);
-  var maiorOS = 0;
-  state.processes.forEach(function(p){
-    var m = /OS-(\d+)\//.exec(p.ordemServico||'');
-    if(m){ var n = parseInt(m[1],10); if(n>maiorOS) maiorOS = n; }
-  });
-  state.nextOrdemSeq = maiorOS + 1;
   state.session = {userId: uPerfil.id};
   return true;
 }
 
-/* ---------- Atualização em segundo plano (sem precisar recarregar a página) ----------
-   Antes, os processos só eram buscados do servidor no login (equipe/cliente logado)
-   ou na busca inicial pelo número da OS (visitante do link público). Depois disso,
-   cada tela ficava com a cópia que já tinha em memória — então se o cliente mandasse
-   uma observação, ou a equipe alterasse algo, quem já estava com a outra tela aberta
-   só via a mudança dando F5 na página inteira. Isso dava a impressão de que a
-   informação "não tinha sido gravada" ou "não aparecia pra equipe", mesmo já estando
-   salva no banco. As funções abaixo buscam os dados mais recentes por conta própria,
-   sem que a pessoa precise recarregar nada. */
+/* ---------- Atualização em segundo plano ----------
+   A cada 20 segundos a lista de processos é relida da planilha, para a tela mostrar o que outras pessoas
+   gravaram sem precisar recarregar a página. Não roda enquanto houver gravação em andamento nem com um campo
+   em edição (para não apagar da tela o que ainda está sendo salvo ou digitado). */
 function algumCampoEmEdicao(){
   var el = document.activeElement;
   return !!(el && (el.tagName==='TEXTAREA' || el.tagName==='INPUT' || el.tagName==='SELECT'));
@@ -1571,12 +1540,8 @@ async function atualizarDadosDoServidorSilenciosamente(){
 setInterval(atualizarDadosDoServidorSilenciosamente, 20000);
 
 /* ---------- Aviso de nova versão publicada ----------
-   Como este app é uma página só, uma aba que já está aberta NUNCA busca sozinha
-   o HTML/JS mais novo — mesmo que a Brenda publique uma correção, quem já
-   estava com a tela aberta continua rodando o código antigo até dar um recarregar
-   de verdade na página. Isso já causou mais de uma vez a impressão de que uma
-   correção publicada "não funcionou". Este aviso aparece assim que detecta uma
-   versão mais nova no ar, com um botão para atualizar num clique. */
+   Uma aba aberta não baixa sozinha o código novo. A cada minuto a página confere o BUILD_ID publicado e,
+   se for diferente do que está rodando, mostra uma faixa com o botão "Atualizar agora". */
 async function verificarNovaVersaoDisponivel(){
   try{
     var r = await fetch(location.pathname + (location.pathname.indexOf('?')===-1?'?':'&') + '_v=' + Date.now(), {cache:'no-store'});
@@ -1603,10 +1568,10 @@ function mostrarErroLogin(msg){
 }
 
 /* =========================================================
-   4) UTILITÁRIOS
+   UTILITÁRIOS (datas, máscaras, nomes, permissões)
    ========================================================= */
 function fmtMoney(v){
-  return v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+  return (Number(v) || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 }
 function avisoUrgenciaHtml(checkboxId, onchangeCall, omitirTaxaUrgencia){
   var textoTaxa = omitirTaxaUrgencia ? '' : 'será cobrada a <strong class="txt-danger-strong">taxa de urgência no valor de R$ 200,00</strong>, e os ';
@@ -1618,9 +1583,8 @@ function avisoUrgenciaHtml(checkboxId, onchangeCall, omitirTaxaUrgencia){
   '</div>';
 }
 function fmtDate(iso){
-  if(!iso) return '—';
-  var p = iso.split('-');
-  return p[2]+'/'+p[1]+'/'+p[0];
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));     /* só aceita AAAA-MM-DD: qualquer outra coisa vira "—" */
+  return m ? m[3]+'/'+m[2]+'/'+m[1] : '—';
 }
 function fmtDataHora(iso){
   if(!iso) return 'Nunca acessou';
@@ -1682,24 +1646,6 @@ function maskCnpj(el){
 }
 function maskDigitos(el, max){
   el.value = (el.value||'').replace(/\D/g,'').slice(0, max||20);
-}
-async function gerarOrdemServico(){
-  /* o número é o maior da planilha no ano, mais 1 (ver xlProximaOS) */
-  try{
-    var data = await comRetentativa(async function(){
-      var res = await planilha.rpc('gerar_ordem_servico');
-      if(res.error) throw res.error;
-      if(!res.data) throw new Error('RPC gerar_ordem_servico sem retorno');
-      return res.data;
-    });
-    return data;
-  }catch(e){
-    console.error('Erro ao gerar número de ordem de serviço via RPC:', e);
-  }
-  /* fallback (só ocorre se a chamada ao banco falhar, ex.: sem internet) */
-  var n = state.nextOrdemSeq++;
-  var ano = new Date().getFullYear();
-  return 'OS-'+String(n).padStart(3,'0')+'/'+ano;
 }
 
 function nomeParaProcesso(p){
@@ -1771,46 +1717,14 @@ async function salvarProcessoNoServidorInterno(processo, ehNovo){
     return false;
   }
 }
-async function finalizarNovoProcesso(processo, toastLogado){
-  if(!currentUser()) return await enviarSolicitacaoPublica(processo);   /* cliente sem conta: vai pelo fluxo "Criar" */
-  iniciarSemPagamento(processo);
-  var u = currentUser();
-  processo.ordemServico = await gerarOrdemServico();
-  if(u){
-    processo.empresaId = u.empresaId;
-    var empresa = getCompany(u.empresaId);
-    processo.divisao = empresa ? (empresa.divisao || null) : null;
-    var fa = processo.formularioAbertura;
-    var telPessoal = (fa && fa.telefoneOpcao==='pessoal') ? fa.telefonePessoal : '';
-    var emailPessoal = (fa && fa.emailOpcao==='pessoal') ? fa.emailPessoal : '';
-    processo.solicitanteContato = {telefone: telPessoal || u.telefone || '', email: emailPessoal || u.email || ''};
-  } else {
-    processo.empresaId = null;
-    processo.visitante = state.visitante ? {nome:state.visitante.nome, telefone:state.visitante.telefone, email:state.visitante.email} : null;
-    processo.divisao = null;
-    processo.solicitanteContato = processo.visitante ? {telefone: processo.visitante.telefone||'', email: processo.visitante.email||''} : null;
-  }
-
-  /* salva de verdade no servidor ANTES de mostrar qualquer tela de sucesso —
-     se a gravação falhar (sem internet, erro da planilha, etc.), o cliente
-     precisa ver isso e poder tentar de novo, em vez de receber uma
-     confirmação falsa enquanto nada foi realmente registrado. */
-  var salvoComSucesso = await salvarProcessoNoServidor(processo, true);
-  if(!salvoComSucesso){
-    toast('Não foi possível enviar sua solicitação. Verifique sua internet e tente novamente.');
-    return false;
-  }
-
-  state.processes.push(processo);
-  saveState();
-  closePanel();
-  if(u){
-    go({name:'cliente-processos'});
-    toast(toastLogado || 'Formulário enviado com sucesso! Você receberá o boleto em breve.');
-  } else {
-    go({name:'link-publico', etapa:'confirmacao', ordemServico:processo.ordemServico});
-  }
-  return true;
+/* Os formulários de solicitação são usados só pelo cliente, sem conta: o pedido vai pelo fluxo "Criar". */
+async function finalizarNovoProcesso(processo){
+  return await enviarSolicitacaoPublica(processo);
+}
+/* Valor de dado colocado como texto JavaScript dentro de um atributo HTML, como em onclick="PS.x('…')".
+   Só esc() não basta nesse caso: o navegador transforma &#39; de volta em aspas antes de rodar o código. */
+function jsArg(v){
+  return esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r\n|\r|\n|\u2028|\u2029/g, ' '));
 }
 function esc(str){
   return String(str==null?'':str).replace(/[&<>"']/g, function(c){
@@ -1824,11 +1738,10 @@ function initials(name){
 function getUser(id){ return state.users.filter(function(u){return u.id===id;})[0]; }
 function getCompany(id){ return state.companies.filter(function(c){return c.id===id;})[0]; }
 function currentUser(){ return state.session ? getUser(state.session.userId) : null; }
-function isAdmin(){ var u=currentUser(); return u && (u.role==='admin' || u.role==='colaborador' || u.role==='freelancer'); }
+function isAdmin(){ var u=currentUser(); return !!u && (u.role==='admin' || u.role==='colaborador'); }
 function roleChipInfo(u){
   if(u.role==='admin') return {cls:'admin', label: u.principal ? 'Admin principal' : 'Admin'};
   if(u.role==='colaborador') return {cls:'colaborador', label:'Colaborador'};
-  if(u.role==='freelancer') return {cls:'freelancer', label:'Freelancer'};
   return {cls:'cliente', label:'Cliente'};
 }
 function processosVisiveis(){
@@ -1838,13 +1751,7 @@ function processosVisiveisBruto(){
   var u = currentUser();
   if(!u) return [];
   if(u.role==='admin') return state.processes;
-  var meus = state.processes.filter(function(p){ return p.responsavelId===u.id; });
-  if(u.role==='freelancer'){
-    /* freelancer só enxerga o processo depois que o administrador avançar a etapa
-       inicial (ex.: de "recebimento de informações" para "viabilidade") */
-    meus = meus.filter(function(p){ return typeof p.etapaAtual==='number' && p.etapaAtual>=1; });
-  }
-  return meus;
+  return state.processes.filter(function(p){ return p.responsavelId===u.id; });     /* colaborador: só os processos atribuídos a ele */
 }
 function effectiveCompanyForPricing(){
   var u = currentUser();
@@ -1854,7 +1761,7 @@ function effectiveCompanyForPricing(){
 }
 
 function statusLabel(s){
-  return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito'}[s] || s || 'Status desconhecido';
+  return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito'}[s] || 'Status desconhecido';
 }
 function divisaoLabel(d){
   return {tech:'Lucralize Tech', contabilidade:'Lucralize Contabilidade'}[d] || null;
@@ -1873,20 +1780,13 @@ function priceForCompany(service, company){
   var match = company ? service.precos.filter(function(p){ return p.tipo===company.tipo; })[0] : null;
   return match || service.precos[0];
 }
-/* ---------- Linha do tempo dinâmica por processo ----------
-   Antes, cada serviço tinha uma lista fixa de etapas (service.etapas), igual
-   para todo processo daquele serviço. A Brenda pediu duas coisas que isso não
-   suportava: (1) toda vez que existir a etapa "Registro Digital na Junta
-   Comercial", logo depois precisa aparecer "Em análise pela Junta Comercial";
-   e (2) a Alteração Contratual (simples e complexa) precisa de um conjunto de
-   etapas diferente dependendo do que o cliente selecionou no formulário —
-   endereço/atividades/nome empresarial usa o fluxo completo (viabilidade até
-   a análise da Junta), já quando é só capital social e/ou quadro societário
-   o processo começa direto no DBE. Em nenhum dos dois casos de alteração o
-   licenciamento aparece pro cliente — vira um item de controle interno (ver
-   itensInternosDoProcesso). Por isso as etapas agora são calculadas por
-   processo (etapasDoProcesso), a partir do que o cliente respondeu, e não
-   mais fixas no catálogo. */
+/* ---------- Linha do tempo calculada por processo ----------
+   As etapas não são fixas por serviço: dependem do que o cliente respondeu no formulário (etapasDoProcesso).
+   - Sempre que existir "Registro Digital na Junta Comercial", logo depois vem "Em análise pela Junta Comercial".
+   - Alteração Contratual com endereço, atividades ou nome empresarial usa o fluxo completo (viabilidade até a
+     análise da Junta); só capital social e/ou quadro societário começa direto no DBE.
+   - Nas alterações, o licenciamento não aparece para o cliente: é um item de controle interno
+     (itensInternosDoProcesso). */
 function alteracaoVarianteCompleta(dados){
   /* true = envolve endereço, atividades econômicas ou nome empresarial (usa o
      fluxo completo até a Junta); false = só capital social e/ou quadro
@@ -1961,7 +1861,7 @@ async function toggleItemInterno(id, item){
     toast('Não foi possível salvar. Verifique sua internet e tente novamente.');
   }
 }
-function stepStates(process, service){
+function stepStates(process){
   var steps = etapasDoProcesso(process);
   var out = [];
   for(var i=0;i<steps.length;i++){
@@ -1985,12 +1885,12 @@ function seal(size, color){
 }
 
 /* =========================================================
-   5) NAVEGAÇÃO
+   NAVEGAÇÃO, LOGIN E INICIALIZAÇÃO
    ========================================================= */
 function go(view){
   state.view = view; saveState(); render(); window.scrollTo(0,0);
   var telasQueMerecemDadosFrescos = {'admin-solicitacoes':1,'admin-processos':1,'admin-processo-detalhe':1,'admin-overview':1};
-  if(view && (telasQueMerecemDadosFrescos[view.name] || (view.name==='link-publico' && view.etapa==='processo'))){
+  if(view && telasQueMerecemDadosFrescos[view.name]){
     atualizarDadosDoServidorSilenciosamente();
   }
 }
@@ -2003,9 +1903,8 @@ async function login(userId){
     render();
     return;
   }
-  var u = currentUser();
   planilha.rpc('registrar_ultimo_acesso').then(function(r){ if(r.error) console.warn('Registrar último acesso:', r.error.message); });
-  state.view = {name: u.role==='freelancer' ? 'admin-processos' : 'admin-overview'};
+  state.view = {name:'admin-overview'};
   render();
 }
 function logout(){
@@ -2018,7 +1917,6 @@ function logout(){
 }
 async function boot(){
   iniciarAvisoAnexos();
-  try{ localStorage.removeItem('portalSocietarioDemoV1'); localStorage.removeItem('psTrocarSenhaPendenteUserId'); }catch(e){}   /* restos de versões antigas */
   if(state.view.name!=='carregando'){ render(); return; }
   try{
     var m = await msEnsure();
@@ -2036,7 +1934,7 @@ async function boot(){
 }
 
 /* =========================================================
-   6) RENDER — shell
+   MONTAGEM DA TELA (render) E PÁGINA INICIAL
    ========================================================= */
 var toastTimer=null;
 function toast(msg){
@@ -2135,7 +2033,7 @@ async function entrarComContaMicrosoft(){
   var motivo = null;
   if(!achado) motivo = 'Sua conta Microsoft ('+(emails[0]||'?')+') não está cadastrada na equipe do Portal Societário. Peça a um administrador para incluir seu e-mail.';
   else if(achado.dados.ativo === false) motivo = 'Seu acesso ao Portal Societário está inativo. Fale com um administrador.';
-  else if(['admin','colaborador','freelancer'].indexOf(achado.role) === -1) motivo = 'Seu cadastro está sem um perfil válido (admin, colaborador ou freelancer). Fale com um administrador.';
+  else if(['admin','colaborador'].indexOf(achado.role) === -1) motivo = 'Seu cadastro está sem um perfil válido (admin ou colaborador). Fale com um administrador.';
   if(motivo){ semAcessoMsg = motivo; state.session = null; state.view = {name:'sem-acesso'}; render(); return; }
   _xlUser = {id: achado.id, role: achado.role};
   await login(achado.id);
@@ -2157,7 +2055,8 @@ async function entrarFuncionario(){
 /* ---------- TROCA DE SENHA OBRIGATÓRIA (primeiro acesso com senha provisória) ---------- */
 
 /* =========================================================
-   LINK PÚBLICO — acesso sem login (visitante)
+   ÁREA PÚBLICA — cliente sem login
+   Moldura das telas públicas, escolha do tipo de serviço e catálogo com preços.
    ========================================================= */
 function linkPublicoShell(innerHtml, opts){
   opts = opts || {};
@@ -2198,11 +2097,8 @@ function linkPublicoSair(){
 function renderLinkPublico(){
   var view = state.view || {};
   var etapa = view.etapa || 'divisao';
-  if(etapa==='cnpj-status') return renderLinkPublicoDivisao();
-  if(etapa==='opcoes') return renderLinkPublicoDivisao();
   if(etapa==='gate') return renderLinkPublicoGate();
   if(etapa==='catalogo') return renderLinkPublicoCatalogo();
-  if(etapa==='processo') return renderLinkPublicoProcesso(view.id);
   if(etapa==='confirmacao') return renderLinkPublicoConfirmacao(view.codigo);
   return renderLinkPublicoDivisao();
 }
@@ -2242,7 +2138,7 @@ function renderLinkPublicoCatalogoAbertura(){
   var ids = ['abertura-cnpj','transformacao-mei-me'];
   var cards = ids.map(function(id){
     var s = SERVICE_MAP[id];
-    return '<button class="card svc-card" onclick="PS.openService(\''+s.id+'\')">'+
+    return '<button class="card svc-card" onclick="PS.openService(\''+jsArg(s.id)+'\')">'+
       '<span class="nome">'+esc(servicoNomeSemFilial(s))+'</span>'+
     '</button>';
   }).join('');
@@ -2253,48 +2149,35 @@ function renderLinkPublicoCatalogoAbertura(){
     cards
   , {backOnclick:"PS.go({name:'link-publico', etapa:'gate'})"});
 }
-function renderLinkPublicoProcesso(id){
-  return linkPublicoShellWide(renderProcessoDetalhe(id, false, true), {});
-}
 /* ---------- SHELL (sidebar + topbar + content) ---------- */
+/* =========================================================
+   TELA DA EQUIPE — menu lateral e cabeçalho
+   ========================================================= */
 function renderShell(u){
-  var admin = u.role==='admin' || u.role==='colaborador' || u.role==='freelancer';
-  var items;
-  if(u.role==='freelancer'){
-    items = [{k:'admin-processos', ic:'≣', label:'Processos'}];
-  } else if(admin){
-    items = [
-      {k:'admin-overview', ic:'◆', label:'Visão geral'},
-      {k:'admin-processos', ic:'≣', label:'Processos'},
-      {k:'admin-catalogo', ic:'▤', label:'Catálogo de serviços'}
-    ];
-    items.splice(2, 0, {k:'admin-solicitacoes', ic:'✉', label:'Processos sem OS', badge:contarSolicitacoes()});
-    items.push({k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'});
-    if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
-  } else {
-    items = [];
-  }
-  /* trava de segurança: se o estado de navegação salvo apontar para uma tela
-     que este papel não deveria acessar, redireciona para a tela permitida */
-  if(u.role==='freelancer' && ['admin-overview','admin-catalogo','admin-usuarios','admin-excluidos'].indexOf(state.view.name)!==-1){
+  /* só a equipe (admin ou colaborador) chega aqui; o login recusa qualquer outro perfil */
+  var items = [
+    {k:'admin-overview', ic:'◆', label:'Visão geral'},
+    {k:'admin-processos', ic:'≣', label:'Processos'},
+    {k:'admin-solicitacoes', ic:'✉', label:'Processos sem OS', badge:contarSolicitacoes()},
+    {k:'admin-catalogo', ic:'▤', label:'Catálogo de serviços'},
+    {k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'}
+  ];
+  if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
+  /* a tela de usuários é só do administrador */
+  if(u.role!=='admin' && state.view.name==='admin-usuarios'){
     state.view = {name:'admin-processos'};
   }
-  if(u.role==='colaborador' && state.view.name==='admin-usuarios'){
-    state.view = {name:'admin-processos'};
-  }
-  if(u.role==='freelancer' && state.view.name==='admin-solicitacoes'){ state.view = {name:'admin-processos'}; }
   var navHtml = items.map(function(it){
     var active = state.view.name===it.k;
-    return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+it.k+'\'})"><span class="ic">'+it.ic+'</span>'+it.label+(it.badge ? '<span class="nav-badge">'+it.badge+'</span>' : '')+'</button>';
+    return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+jsArg(it.k)+'\'})"><span class="ic">'+it.ic+'</span>'+esc(it.label)+(it.badge ? '<span class="nav-badge">'+it.badge+'</span>' : '')+'</button>';
   }).join('');
 
-  var company = admin ? null : getCompany(u.empresaId);
   var pageTitle = {
     'admin-overview':'Visão geral', 'admin-processos':'Todos os processos', 'admin-catalogo':'Catálogo de serviços',
     'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS',
     'admin-processo-detalhe':'Detalhe do processo'
   }[state.view.name] || '';
-  var crumb = admin ? 'Painel Lucralize' : (company ? company.nome : '');
+  var crumb = 'Painel Lucralize';
 
   var body;
   if(state.view.name==='admin-overview') body = renderAdminOverview();
@@ -2303,7 +2186,7 @@ function renderShell(u){
   else if(state.view.name==='admin-usuarios') body = renderAdminUsuarios();
   else if(state.view.name==='admin-excluidos') body = renderAdminExcluidos();
   else if(state.view.name==='admin-solicitacoes') body = renderAdminSolicitacoes();
-  else if(state.view.name==='admin-processo-detalhe') body = renderProcessoDetalhe(state.view.id, true, false);
+  else if(state.view.name==='admin-processo-detalhe') body = renderProcessoDetalhe(state.view.id);
   else body = '<div class="empty-state">Tela não encontrada.</div>';
 
   return ''+
@@ -2313,8 +2196,8 @@ function renderShell(u){
       '<nav class="nav-group">'+navHtml+'</nav>'+
       '<div class="sidebar-foot">'+
         '<div class="user-pill">'+
-          '<span class="demo-avatar">'+initials(u.nome)+'</span>'+
-          '<span class="who"><strong>'+esc(u.nome)+'</strong><span>'+(admin?'Equipe Lucralize':esc(company?company.nome:''))+'</span></span>'+
+          '<span class="avatar">'+esc(initials(u.nome))+'</span>'+
+          '<span class="who"><strong>'+esc(u.nome)+'</strong><span>Equipe Lucralize</span></span>'+
         '</div>'+
         '<button class="btn btn-ghost btn-sm" style="color:#fff; border-color:rgba(255,255,255,.25);" onclick="PS.logout()">Sair</button>'+
       '</div>'+
@@ -2338,6 +2221,10 @@ function renderShell(u){
 /* ---------- CLIENTE: meus processos ---------- */
 
 /* ---------- CATÁLOGO (cliente ou admin, admin=readonly) ---------- */
+/* =========================================================
+   CATÁLOGO NA TELA
+   Usado pelo cliente (com botão "Solicitar") e pela equipe (modo consulta).
+   ========================================================= */
 function renderCatalogo(company, adminMode, excludeCategorias){
   var cats = excludeCategorias ? CATEGORY_ORDER.filter(function(c){return excludeCategorias.indexOf(c)===-1;}) : CATEGORY_ORDER;
   var blocks = cats.map(function(cat){
@@ -2346,7 +2233,7 @@ function renderCatalogo(company, adminMode, excludeCategorias){
       var price = !s.precos ? null : (company ? priceForCompany(s, company) : (s.precos.length===1 ? s.precos[0] : null));
       var priceHtml = !s.precos ? 'Sem custo adicional' : (price ? fmtMoney(price.valor) : 'Consulte valores');
       var priceLabel = (s.precos && price) ? (price.tipo==='Valor único'||price.tipo==='A partir de'||price.tipo==='Valor único (todos os tipos)' ? (s.id==='alvara-funcionamento'?'a partir de · '+company_or_generic(company):'valor único') : 'para '+price.tipo) : '';
-      return '<button class="card svc-card" onclick="PS.openService(\''+s.id+'\')">'+
+      return '<button class="card svc-card" onclick="PS.openService(\''+jsArg(s.id)+'\')">'+
         '<span class="eyebrow">'+esc(s.categoria)+'</span>'+
         '<span class="nome">'+esc(s.nome)+'</span>'+
         '<span class="resumo">'+esc(s.resumo)+'</span>'+
@@ -2480,7 +2367,7 @@ function openService(serviceId){
   var priceBig = myPrice ? fmtMoney(myPrice.valor) : (s.precos && s.precos.length===1?fmtMoney(s.precos[0].valor):'Consulte a tabela abaixo');
   var priceObs = s.precoObs ? '<p style="font-size:.78rem; color:var(--ink-faint); margin-top:.2rem;">'+esc(s.precoObs)+'</p>' : '';
 
-  var actionBtn = admin ? '' : '<button class="btn btn-primary btn-block" onclick="PS.openSolicitarForm(\''+s.id+'\')">Solicitar este serviço</button>';
+  var actionBtn = admin ? '' : '<button class="btn btn-primary btn-block" onclick="PS.openSolicitarForm(\''+jsArg(s.id)+'\')">Solicitar este serviço</button>';
 
   var valorCardHtml = s.valorTextoCustomHtml ? (''+
     '<div class="card" style="padding:1.1rem 1.2rem;">'+
@@ -2539,6 +2426,12 @@ function closePanel(){
   var m = document.getElementById('modal-root');
   if(m) m.remove();
 }
+/* =========================================================
+   FORMULÁRIOS DE SOLICITAÇÃO DO CLIENTE
+   Um formulário por tipo de serviço (abertura/transformação, alteração contratual, baixa, alvará,
+   representante/DBE) e um genérico para os demais. Cada um tem: open… (monta), …Validar, enviar… e
+   renderFormulario…Resumo (como a equipe vê as respostas no detalhe do processo).
+   ========================================================= */
 function openSolicitarForm(serviceId){
   if(serviceId==='abertura-cnpj'){ openSolicitarFormAbertura('abertura'); return; }
   if(serviceId==='transformacao-mei-me'){ openSolicitarFormAbertura('transformacao'); return; }
@@ -2580,7 +2473,7 @@ function openSolicitarForm(serviceId){
       '</div>'+
       '<div class="panel-foot">'+
         '<button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button>'+
-        '<button class="btn btn-primary" id="sol-submit-btn" onclick="PS.enviarSolicitacao(\''+s.id+'\')">Enviar solicitação</button>'+
+        '<button class="btn btn-primary" id="sol-submit-btn" onclick="PS.enviarSolicitacao(\''+jsArg(s.id)+'\')">Enviar solicitação</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -2628,18 +2521,14 @@ async function enviarSolicitacao(serviceId){
   var resumoTexto = 'Solicitação registrada pelo cliente no portal com '+anexados+' de '+total+' documento'+(total===1?'':'s')+' anexado'+(anexados===1?'':'s')+
     (infoAdicional.trim() ? ' e informações adicionais preenchidas.' : '.') + ' Aguardando envio do boleto.';
 
-  var toastMsg = (anexados < total)
-    ? ('Solicitação enviada! '+(total-anexados)+' documento(s) ainda pendente(s) — você pode enviá-los depois.')
-    : 'Solicitação enviada com todos os documentos! Você receberá o boleto em breve.';
-
   var ok = await finalizarNovoProcesso({
     id:id, servicoId:serviceId, status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:resumoTexto, autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     solicitacaoInfo: infoAdicional,
     solicitacaoDocs: documentosEnviados
-  }, toastMsg);
+  });
   if(!ok && submitBtn) submitBtn.disabled = false;
 }
 
@@ -2965,7 +2854,7 @@ function openSolicitarFormAbertura(variant){
       '</div>'+
       '<div class="panel-foot">'+
         '<button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button>'+
-        '<button class="btn btn-primary" id="fab-submit-btn" disabled onclick="PS.enviarSolicitacaoAbertura(\''+variant+'\')">Enviar solicitação</button>'+
+        '<button class="btn btn-primary" id="fab-submit-btn" disabled onclick="PS.enviarSolicitacaoAbertura(\''+jsArg(variant)+'\')">Enviar solicitação</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -3074,7 +2963,6 @@ async function enviarSolicitacaoAbertura(variant){
   if(submitBtn) submitBtn.disabled = true;
   toast('Enviando arquivos...');
 
-  var u = currentUser();
   var q2radio = document.querySelector('input[name="fab-q2"]:checked');
   var q3radio = document.querySelector('input[name="fab-q3"]:checked');
   var iptuModo = document.querySelector('input[name="fab-q3-iptu-modo"]:checked');
@@ -3128,7 +3016,7 @@ async function enviarSolicitacaoAbertura(variant){
     id:id, servicoId:servicoId, status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:(isTransf?'Formulário de transformação de MEI':'Formulário de abertura de CNPJ')+' preenchido e enviado pelo cliente.', autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     formularioAbertura: dados
   });
   if(!ok && submitBtn) submitBtn.disabled = false;
@@ -3147,7 +3035,7 @@ function renderFormularioAberturaResumo(p){
     var nomeArquivo = typeof doc === 'string' ? doc : doc.nome;
     var path = doc && typeof doc === 'object' ? doc.path : null;
     var btn = path
-      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+esc(path)+'\')">Baixar</button>'
+      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+jsArg(path)+'\')">Baixar</button>'
       : '<button class="btn btn-subtle btn-sm" style="flex:none;" disabled title="Arquivo original não disponível para download">Baixar</button>';
     return '<div class="file-row" style="align-items:flex-start;">'+
         '<span class="ic" style="margin-top:.1rem;">📄</span>'+
@@ -3404,7 +3292,7 @@ function openSolicitarFormAlteracao(servicoId){
       '</div>'+
       '<div class="panel-foot">'+
         '<button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button>'+
-        '<button class="btn btn-primary" id="alt-submit-btn" disabled onclick="PS.enviarSolicitacaoAlteracao(\''+s.id+'\')">Enviar solicitação</button>'+
+        '<button class="btn btn-primary" id="alt-submit-btn" disabled onclick="PS.enviarSolicitacaoAlteracao(\''+jsArg(s.id)+'\')">Enviar solicitação</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -3526,7 +3414,6 @@ async function enviarSolicitacaoAlteracao(servicoId){
   if(submitBtn) submitBtn.disabled = true;
   toast('Enviando arquivos...');
 
-  var u = currentUser();
   var s = SERVICE_MAP[servicoId];
   var isComplexa = servicoId === 'alteracao-complexa';
   var endereco = !!(document.getElementById('alt-tipo-endereco')||{}).checked;
@@ -3587,7 +3474,7 @@ async function enviarSolicitacaoAlteracao(servicoId){
     id:id, servicoId:servicoId, status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:'Formulário de '+s.nome+' preenchido e enviado pelo cliente. Aguardando envio do boleto.', autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     formularioAlteracao: dados
   });
   if(!ok && submitBtn) submitBtn.disabled = false;
@@ -3602,7 +3489,7 @@ function renderFormularioAlteracaoResumo(p){
     var nomeArquivo = typeof doc === 'string' ? doc : doc.nome;
     var path = doc && typeof doc === 'object' ? doc.path : null;
     var btn = path
-      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+esc(path)+'\')">Baixar</button>'
+      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+jsArg(path)+'\')">Baixar</button>'
       : '<button class="btn btn-subtle btn-sm" style="flex:none;" disabled title="Arquivo original não disponível para download">Baixar</button>';
     return '<div class="file-row" style="align-items:flex-start;">'+
         '<span class="ic" style="margin-top:.1rem;">📄</span>'+
@@ -3676,7 +3563,7 @@ function renderFormularioAlteracaoResumo(p){
 function baxUploadRow(id, label){
   return '<div class="upload-row" id="'+id+'-row"><div class="upload-row-label"><span class="req-dot"></span>'+label+'</div>'+
     '<label class="file-picker" for="'+id+'"><span class="ic">⬆</span><span class="txt" id="'+id+'-txt">Anexar arquivo</span></label>'+
-    '<input type="file" id="'+id+'" style="display:none;" onchange="PS.fabFileChosen(\''+id+'\')"></div>';
+    '<input type="file" id="'+id+'" style="display:none;" onchange="PS.fabFileChosen(\''+jsArg(id)+'\')"></div>';
 }
 function baxToggleFluxo(){
   var radio = document.querySelector('input[name="bax-q1-pendencias"]:checked');
@@ -3737,8 +3624,8 @@ function openSolicitarFormBaixa(){
     return '<div class="field" style="gap:.6rem;">'+
       '<label>Possui parcelamento ativo na esfera '+label+'?</label>'+
       '<div class="radio-group">'+
-        '<label class="radio-option"><input type="radio" name="bax-parc-'+esfera+'-tem" value="nao" checked onchange="PS.baxToggleParcelamento(\''+esfera+'\')"> Não</label>'+
-        '<label class="radio-option"><input type="radio" name="bax-parc-'+esfera+'-tem" value="sim" onchange="PS.baxToggleParcelamento(\''+esfera+'\')"> Sim</label>'+
+        '<label class="radio-option"><input type="radio" name="bax-parc-'+esfera+'-tem" value="nao" checked onchange="PS.baxToggleParcelamento(\''+jsArg(esfera)+'\')"> Não</label>'+
+        '<label class="radio-option"><input type="radio" name="bax-parc-'+esfera+'-tem" value="sim" onchange="PS.baxToggleParcelamento(\''+jsArg(esfera)+'\')"> Sim</label>'+
       '</div>'+
       '<div id="bax-parc-'+esfera+'-detalhes" style="display:none; flex-direction:column; gap:.6rem;">'+
         '<div class="form-grid">'+
@@ -3803,10 +3690,6 @@ function baxValidar(){
     var el = document.getElementById(id);
     if(!el || !el.value || !el.value.trim()) erros.push(label);
   }
-  function reqFile(id, label){
-    var el = document.getElementById(id);
-    if(!el || !el.files || !el.files[0]) erros.push(label);
-  }
 
   var q1radio = document.querySelector('input[name="bax-q1-pendencias"]:checked');
   if(!q1radio){ erros.push('Se o CNPJ possui pendências em aberto (pergunta 1)'); return erros; }
@@ -3858,7 +3741,6 @@ async function enviarSolicitacaoBaixa(){
   if(submitBtn) submitBtn.disabled = true;
   toast('Enviando arquivos...');
 
-  var u = currentUser();
   var s = SERVICE_MAP['baixa-cnpj'];
   var q1radio = document.querySelector('input[name="bax-q1-pendencias"]:checked');
   var temPendencias = q1radio.value==='sim';
@@ -3901,7 +3783,7 @@ async function enviarSolicitacaoBaixa(){
     id:id, servicoId:'baixa-cnpj', status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:'Formulário de '+s.nome+' preenchido e enviado pelo cliente. Aguardando envio do boleto.', autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     formularioBaixa: dados
   });
   if(!ok && submitBtn) submitBtn.disabled = false;
@@ -3916,7 +3798,7 @@ function renderFormularioBaixaResumo(p){
     var nomeArquivo = typeof doc === 'string' ? doc : doc.nome;
     var path = doc && typeof doc === 'object' ? doc.path : null;
     var btn = path
-      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+esc(path)+'\')">Baixar</button>'
+      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+jsArg(path)+'\')">Baixar</button>'
       : '<button class="btn btn-subtle btn-sm" style="flex:none;" disabled title="Arquivo original não disponível para download">Baixar</button>';
     return '<div class="file-row" style="align-items:flex-start;">'+
         '<span class="ic" style="margin-top:.1rem;">📄</span>'+
@@ -4078,7 +3960,6 @@ async function enviarSolicitacaoAlvara(){
   if(submitBtn) submitBtn.disabled = true;
   toast('Enviando arquivos...');
 
-  var u = currentUser();
   var s = SERVICE_MAP['alvara-funcionamento'];
   var alvaraNA = document.getElementById('alv-alvara-atual-na');
   var sanitarioNA = document.getElementById('alv-sanitario-na');
@@ -4108,7 +3989,7 @@ async function enviarSolicitacaoAlvara(){
     id:id, servicoId:'alvara-funcionamento', status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:'Formulário de '+s.nome+' preenchido e enviado pelo cliente. Aguardando envio do boleto.', autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     formularioAlvara: dados
   });
   if(!ok && submitBtn) submitBtn.disabled = false;
@@ -4123,7 +4004,7 @@ function renderFormularioAlvaraResumo(p){
     var nomeArquivo = typeof doc === 'string' ? doc : doc.nome;
     var path = doc && typeof doc === 'object' ? doc.path : null;
     var btn = path
-      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+esc(path)+'\')">Baixar</button>'
+      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+jsArg(path)+'\')">Baixar</button>'
       : '<button class="btn btn-subtle btn-sm" style="flex:none;" disabled title="Arquivo original não disponível para download">Baixar</button>';
     return '<div class="file-row" style="align-items:flex-start;">'+
         '<span class="ic" style="margin-top:.1rem;">📄</span>'+
@@ -4277,7 +4158,6 @@ async function enviarSolicitacaoRepresentante(){
   if(submitBtn) submitBtn.disabled = true;
   toast('Enviando arquivos...');
 
-  var u = currentUser();
   var s = SERVICE_MAP['alteracao-dbe'];
   var representante = !!(document.getElementById('rep-tipo-representante')||{}).checked;
   var contato = !!(document.getElementById('rep-tipo-contato')||{}).checked;
@@ -4305,7 +4185,7 @@ async function enviarSolicitacaoRepresentante(){
     id:id, servicoId:'alteracao-dbe', status:'aguardando_pagamento', etapaAtual:-1,
     criadoEm: todayISO(), protocolo:'',
     historico:[{data:todayISO(), hora:nowHM(), texto:'Formulário de '+s.nome+' preenchido e enviado pelo cliente. Aguardando envio do boleto.', autor:'cliente'}],
-    documentosAndamento:[], documentosFinais:[],
+    documentosAndamento:[],
     formularioRepresentante: dados
   });
   if(!ok && submitBtn) submitBtn.disabled = false;
@@ -4320,7 +4200,7 @@ function renderFormularioRepresentanteResumo(p){
     var nomeArquivo = typeof doc === 'string' ? doc : doc.nome;
     var path = doc && typeof doc === 'object' ? doc.path : null;
     var btn = path
-      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+esc(path)+'\')">Baixar</button>'
+      ? '<button class="btn btn-subtle btn-sm" style="flex:none;" onclick="PS.baixarArquivoReal(\''+jsArg(path)+'\')">Baixar</button>'
       : '<button class="btn btn-subtle btn-sm" style="flex:none;" disabled title="Arquivo original não disponível para download">Baixar</button>';
     return '<div class="file-row" style="align-items:flex-start;">'+
         '<span class="ic" style="margin-top:.1rem;">📄</span>'+
@@ -4353,18 +4233,19 @@ function renderFormularioRepresentanteResumo(p){
   '</div>';
 }
 
-function renderSolicitacaoBlock(p, clientMode){
+/* =========================================================
+   DETALHE DO PROCESSO (equipe)
+   Linha do tempo, ações (avançar, reiniciar, excluir), documentos de andamento, responsável e divisão.
+   ========================================================= */
+function renderSolicitacaoBlock(p){
   if(p.solicitacaoDocs===undefined && !p.solicitacaoInfo) return '';
   var docs = p.solicitacaoDocs || [];
-  var rows = docs.map(function(d,i){
+  var rows = docs.map(function(d){
     var attached = !!d.arquivo;
     var rightSide;
     if(attached){
       rightSide = '<span style="font-size:.78rem; font-weight:600; color:var(--success); white-space:nowrap;">✓ '+esc(d.arquivo)+'</span>'+
-        (d.path ? ' <button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+esc(d.path)+'\')">Baixar</button>' : '');
-    } else if(clientMode && p.status!=='concluido'){
-      rightSide = '<label class="file-picker" for="pend-'+p.id+'-'+i+'">Anexar agora</label>'+
-        '<input type="file" id="pend-'+p.id+'-'+i+'" style="display:none;" onchange="PS.anexarDocPendente(\''+p.id+'\','+i+')">';
+        (d.path ? ' <button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+jsArg(d.path)+'\')">Baixar</button>' : '');
     } else {
       rightSide = '<span class="pill tag-estimado">pendente</span>';
     }
@@ -4378,41 +4259,6 @@ function renderSolicitacaoBlock(p, clientMode){
     infoHtml+
   '</div>';
 }
-async function anexarDocPendente(processId, idx){
-  var input = document.getElementById('pend-'+processId+'-'+idx);
-  if(!input || !input.files || !input.files[0]) return;
-  var file = input.files[0];
-  toast('Enviando arquivo...');
-  _opsLocais++;      /* segura a atualização em segundo plano durante o envio e a gravação */
-  try{
-    var doc = await uploadArquivoReal(file, processId, 'pendentes');
-    var p = state.processes.filter(function(x){return x.id===processId;})[0];     /* buscado DEPOIS do envio (a tela pode ter sido atualizada) */
-    if(!p || !p.solicitacaoDocs || !p.solicitacaoDocs[idx]){ toast('O arquivo foi enviado, mas o item não foi encontrado na tela. Atualize a página e confira.'); return; }
-    var item = p.solicitacaoDocs[idx], antes = {arquivo:item.arquivo, path:item.path};
-    var entrada = {data:todayISO(), hora:nowHM(), texto:'Documento "'+item.nome+'" anexado pelo cliente: '+file.name+'.', autor:'cliente'};
-    item.arquivo = file.name;
-    item.path = doc.path;
-    p.historico.push(entrada);
-    saveState();
-    render();
-    var ok = await salvarProcessoNoServidor(p);
-    if(ok){
-      toast('Documento anexado!');
-    } else {
-      item.arquivo = antes.arquivo; item.path = antes.path;
-      p.historico = p.historico.filter(function(h){ return h !== entrada; });
-      saveState();
-      render();
-      toast('O arquivo foi enviado, mas não foi possível atualizar o processo. Tente novamente.');
-    }
-  }catch(e){
-    console.error(e);
-    toast(e && e.amigavel ? e.message : 'Não foi possível enviar o arquivo. Tente novamente.');
-  }finally{
-    _opsLocais--;
-  }
-}
-
 function renderFormularioManualResumo(p){
   var d = p.formularioManual;
   if(!d) return '';
@@ -4423,21 +4269,19 @@ function renderFormularioManualResumo(p){
     '</div>'+
     '<p style="font-size:.85rem; color:var(--ink-soft); line-height:1.5;">Este processo não passou pelo questionário digital do cliente — ele foi registrado a partir de um processo que já estava em andamento antes deste portal.</p>'+
     (d.arquivo ? ('<div class="file-row"><span class="ic">📄</span><span class="name">'+esc(typeof d.arquivo==='string' ? d.arquivo : d.arquivo.nome)+'</span>'+
-        (d.arquivo.path ? '<button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+esc(d.arquivo.path)+'\')">Baixar</button>' : '<button class="btn btn-subtle btn-sm" disabled title="Arquivo original não disponível para download">Baixar</button>')+
+        (d.arquivo.path ? '<button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+jsArg(d.arquivo.path)+'\')">Baixar</button>' : '<button class="btn btn-subtle btn-sm" disabled title="Arquivo original não disponível para download">Baixar</button>')+
       '</div>')
       : '<p style="font-size:.84rem; color:var(--ink-faint);">Nenhum formulário/documento original foi anexado no momento da inclusão.</p>')+
   '</div>';
 }
 
-/* ---------- Detalhe do processo (cliente e admin) ---------- */
-function renderProcessoDetalhe(id, adminMode, publicMode){
+/* ---------- Detalhe do processo (tela da equipe) ---------- */
+function renderProcessoDetalhe(id){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p) return '<div class="empty-state">Processo não encontrado.</div>';
   var s = SERVICE_MAP[p.servicoId];
   if(!s) return '<div class="empty-state">Este processo referencia um serviço não identificado ('+esc(p.servicoId||'—')+'). Entre em contato com o suporte técnico da Lucralize para corrigir este registro.</div>';
   var company = getCompany(p.empresaId);
-  var steps = stepStates(p, s);
-
   var fullSteps = passosParaCliente(p);   /* mesma lista que o cliente vê na consulta */
 
   var stepperHtml = fullSteps.map(function(st, i){
@@ -4454,13 +4298,13 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
      Contratual, ou Portal Nacional/Acesso à Prefeitura numa abertura) —
      nunca aparecem pro cliente, só na visão da equipe, e podem ser marcados
      independente da etapa/status do processo. */
-  var itensInternos = adminMode ? itensInternosDoProcesso(p) : [];
+  var itensInternos = itensInternosDoProcesso(p);
   var itensInternosHtml = itensInternos.length ? (''+
     '<div class="card" style="padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.6rem;">'+
       '<span class="eyebrow">Controle interno — não aparece para o cliente</span>'+
       itensInternos.map(function(item){
         var marcado = !!(p.itensInternos && p.itensInternos[item]);
-        return '<label class="radio-option" style="align-items:center;"><input type="checkbox"'+(marcado?' checked':'')+' onchange="PS.toggleItemInterno(\''+p.id+'\', \''+esc(item)+'\')"> '+esc(item)+'</label>';
+        return '<label class="radio-option" style="align-items:center;"><input type="checkbox"'+(marcado?' checked':'')+' onchange="PS.toggleItemInterno(\''+jsArg(p.id)+'\', \''+jsArg(item)+'\')"> '+esc(item)+'</label>';
       }).join('')+
     '</div>') : '';
 
@@ -4468,40 +4312,39 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
     var ehObservacao = h.tipo==='observacao_cliente';
     return '<div style="display:flex; gap:.8rem; font-size:.84rem;">'+
       '<span class="mono" style="color:var(--ink-faint); flex:none; width:118px;">'+fmtDate(h.data)+' '+esc(h.hora||'')+'</span>'+
-      '<span style="flex:1;'+(ehObservacao?' color:var(--danger); font-weight:700;':'')+'">'+esc(h.texto)+'<span style="display:block; font-size:.72rem; font-weight:600; color:'+(ehObservacao?'var(--danger)':'var(--ink-faint)')+'; margin-top:.1rem;">Atualizado por: '+autorLabel(h.autor)+'</span></span>'+
+      '<span style="flex:1;'+(ehObservacao?' color:var(--danger); font-weight:700;':'')+'">'+esc(h.texto)+'<span style="display:block; font-size:.72rem; font-weight:600; color:'+(ehObservacao?'var(--danger)':'var(--ink-faint)')+'; margin-top:.1rem;">Atualizado por: '+esc(autorLabel(h.autor))+'</span></span>'+
     '</div>';
   }).join('<div style="height:.55rem;"></div>');
 
-  function fileRows(list, categoria){
+  function fileRows(list){
     return list.length ? list.map(function(d, i){
       var btn = d.path
-        ? '<button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+esc(d.path)+'\')">Baixar</button>'
+        ? '<button class="btn btn-subtle btn-sm" onclick="PS.baixarArquivoReal(\''+jsArg(d.path)+'\')">Baixar</button>'
         : '<button class="btn btn-subtle btn-sm" disabled title="Arquivo original não disponível para download">Baixar</button>';
-      var excluirBtn = (adminMode && categoria) ? '<button class="btn btn-danger btn-sm" onclick="PS.abrirModalExcluirArquivo(\''+p.id+'\',\''+categoria+'\','+i+',\''+esc(d.path||'')+'\')">Excluir</button>' : '';
+      var excluirBtn = '<button class="btn btn-danger btn-sm" onclick="PS.abrirModalExcluirArquivo(\''+jsArg(p.id)+'\','+i+',\''+jsArg(d.path||'')+'\')">Excluir</button>';
       return '<div class="file-row"><span class="ic">📄</span><span class="name">'+esc(d.nome)+'</span>'+btn+excluirBtn+'</div>';
     }).join('') : '';
   }
-  var docsFinaisHtml = fileRows(p.documentosFinais, 'finais') || '<p style="font-size:.84rem; color:var(--ink-faint);">Os documentos finais ficarão disponíveis aqui assim que o processo for concluído.</p>';
-  var docsAndamentoHtml = fileRows(p.documentosAndamento, 'andamento') || '<p style="font-size:.84rem; color:var(--ink-faint);">Nenhum documento de andamento anexado ainda.</p>';
+  var docsAndamentoHtml = fileRows(p.documentosAndamento) || '<p style="font-size:.84rem; color:var(--ink-faint);">Nenhum documento de andamento anexado ainda.</p>';
 
-  var solicitacaoHtml = renderSolicitacaoBlock(p, !adminMode);
+  var solicitacaoHtml = renderSolicitacaoBlock(p);
   var formularioHtml = p.formularioAbertura ? renderFormularioAberturaResumo(p) : (p.formularioAlteracao ? renderFormularioAlteracaoResumo(p) : (p.formularioBaixa ? renderFormularioBaixaResumo(p) : (p.formularioAlvara ? renderFormularioAlvaraResumo(p) : (p.formularioRepresentante ? renderFormularioRepresentanteResumo(p) : (p.formularioManual ? renderFormularioManualResumo(p) : '')))));
 
-  var protocoloCard = adminMode ? (''+
+  var protocoloCard = ''+
     '<div class="card" style="padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.6rem;">'+
       '<span class="eyebrow">Protocolo do processo</span>'+
       '<div style="display:flex; gap:.5rem;">'+
         '<input type="text" id="protocolo-input-'+p.id+'" value="'+esc(p.protocolo||'')+'" placeholder="Ex.: JCM-2026-000000" class="mono" style="flex:1; min-width:0; padding:.55rem .7rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.85rem;">'+
-        '<button class="btn btn-teal btn-sm" onclick="PS.salvarProtocolo(\''+p.id+'\')">Salvar</button>'+
+        '<button class="btn btn-teal btn-sm" onclick="PS.salvarProtocolo(\''+jsArg(p.id)+'\')">Salvar</button>'+
       '</div>'+
-    '</div>') : '';
+    '</div>';
 
   var uAtual = currentUser();
-  var ehFreelancer = adminMode && uAtual && uAtual.role==='freelancer';
 
   var adminActions = '';
-  if(adminMode){
-    var bloqueiaConfirmarPagamento = ehFreelancer && p.status==='aguardando_pagamento';
+  if(p.status==='solicitado' || p.status==='recusado'){
+    adminActions = acoesSolicitacao(p);
+  } else {
     var etapasP = etapasDoProcesso(p);
     var naUltimaEtapaAindaEmAndamento = p.status==='em_andamento' && p.etapaAtual===etapasP.length-1;
     var nextLabel = p.status==='cancelado' ? null : (p.status==='aguardando_pagamento' ? 'Confirmar pagamento e iniciar processo'
@@ -4510,16 +4353,14 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
     adminActions = '<div class="card" style="padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.7rem;">'+
       '<span class="eyebrow">Ações do administrador</span>'+
       (p.status==='cancelado' ? '<div class="pill status-cancelado" style="align-self:flex-start;">Processo cancelado pelo cliente</div>' :
-        (bloqueiaConfirmarPagamento ? '<div class="pill status-aguardando_pagamento" style="align-self:flex-start;">Aguardando confirmação de pagamento pelo administrador</div>' :
-        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+p.id+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>')))+botaoVistoriaNaoNecessaria(p)+
-      '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalReiniciar(\''+p.id+'\')">↺ Reiniciar processo</button>'+
-      (!ehFreelancer ? '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button>' : '')+
+        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+jsArg(p.id)+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>'))+botaoVistoriaNaoNecessaria(p)+
+      '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalReiniciar(\''+jsArg(p.id)+'\')">↺ Reiniciar processo</button>'+
+      '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+jsArg(p.id)+'\')">🗑 Excluir processo</button>'+
     '</div>';
   }
-  if(adminMode && (p.status==='solicitado' || p.status==='recusado')) adminActions = acoesSolicitacao(p);
 
-  var responsavelInline = '';
-  if(adminMode){
+  var responsavelInline;
+  {
     var responsaveis = pessoasResponsaveis(p.responsavelId);
     var respAtual = p.responsavelId ? getUser(p.responsavelId) : null;
     if(uAtual && uAtual.role==='admin'){
@@ -4527,21 +4368,21 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
         return '<option value="'+u.id+'"'+(p.responsavelId===u.id?' selected':'')+'>'+esc(u.nome)+' ('+rotuloPapel(u.role)+')</option>';
       }).join('');
       responsavelInline = '<span style="display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--ink-soft);">Responsável:'+
-        '<select id="responsavel-select-'+p.id+'" onchange="PS.atribuirResponsavel(\''+p.id+'\', this.value)" style="padding:.32rem .5rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.8rem; font-family:inherit;">'+responsavelOptions+'</select></span>';
+        '<select id="responsavel-select-'+p.id+'" onchange="PS.atribuirResponsavel(\''+jsArg(p.id)+'\', this.value)" style="padding:.32rem .5rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.8rem; font-family:inherit;">'+responsavelOptions+'</select></span>';
     } else {
       responsavelInline = '<span class="pill" style="background:var(--surface-2); color:var(--ink-soft);">Responsável: '+(respAtual ? esc(respAtual.nome) : 'Ninguém atribuído')+'</span>';
     }
   }
 
-  var divisaoInline = '';
-  if(adminMode){
+  var divisaoInline;
+  {
     var divisaoAtual = divisaoForProcesso(p);
     if(uAtual && uAtual.role==='admin'){
       var divisaoOptions = '<option value="">Não definido</option>'+
         '<option value="tech"'+(p.divisao==='tech'?' selected':'')+'>Lucralize Tech</option>'+
         '<option value="contabilidade"'+(p.divisao==='contabilidade'?' selected':'')+'>Lucralize Contabilidade</option>';
       divisaoInline = '<span style="display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--ink-soft);">Tech/Contabilidade:'+
-        '<select id="divisao-select-'+p.id+'" onchange="PS.atribuirDivisao(\''+p.id+'\', this.value)" style="padding:.32rem .5rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.8rem; font-family:inherit;">'+divisaoOptions+'</select></span>';
+        '<select id="divisao-select-'+p.id+'" onchange="PS.atribuirDivisao(\''+jsArg(p.id)+'\', this.value)" style="padding:.32rem .5rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.8rem; font-family:inherit;">'+divisaoOptions+'</select></span>';
     } else {
       divisaoInline = '<span class="pill" style="background:var(--surface-2); color:var(--ink-soft);">'+(divisaoAtual ? esc(divisaoLabel(divisaoAtual)) : 'Tech/Contabilidade não definido')+'</span>';
     }
@@ -4551,33 +4392,22 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
   var isAberturaPendente = p.servicoId==='abertura-cnpj' && p.status!=='concluido';
   var empresaInfoHtml = isAberturaPendente ? (''+
       '<div class="info-block"><span class="lbl">Solicitante</span><span class="val">'+esc((p.formularioAbertura && p.formularioAbertura.nomeCompleto) || nomeQuem)+'</span></div>'+
-      (!ehFreelancer && p.solicitanteContato && p.solicitanteContato.telefone ? '<div class="info-block"><span class="lbl">Telefone</span><span class="val">'+esc(p.solicitanteContato.telefone)+'</span></div>' : '')+
-      (!ehFreelancer && p.solicitanteContato && p.solicitanteContato.email ? '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+esc(p.solicitanteContato.email)+'</span></div>' : '')
+      (p.solicitanteContato && p.solicitanteContato.telefone ? '<div class="info-block"><span class="lbl">Telefone</span><span class="val">'+esc(p.solicitanteContato.telefone)+'</span></div>' : '')+
+      (p.solicitanteContato && p.solicitanteContato.email ? '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+esc(p.solicitanteContato.email)+'</span></div>' : '')
     ) : (company ? (''+
       '<div class="info-block"><span class="lbl">Razão social</span><span class="val">'+esc(company.nome)+'</span></div>'+
       '<div class="info-block"><span class="lbl">CNPJ</span><span class="val mono">'+esc(company.cnpj)+'</span></div>'
     ) : (''+
       blocoEmpresaSolicitada(p)+
       '<div class="info-block"><span class="lbl">Solicitante</span><span class="val">'+esc((p.visitante && p.visitante.nome) || nomeQuem)+'</span></div>'+
-      (!ehFreelancer && p.visitante && p.visitante.telefone ? '<div class="info-block"><span class="lbl">Telefone</span><span class="val">'+esc(p.visitante.telefone)+'</span></div>' : '')+
-      (!ehFreelancer && p.visitante && p.visitante.email ? '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+esc(p.visitante.email)+'</span></div>' : '')+
+      (p.visitante && p.visitante.telefone ? '<div class="info-block"><span class="lbl">Telefone</span><span class="val">'+esc(p.visitante.telefone)+'</span></div>' : '')+
+      (p.visitante && p.visitante.email ? '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+esc(p.visitante.email)+'</span></div>' : '')+
       '<div class="info-block"><span class="lbl">Origem</span><span class="val" style="color:var(--ink-faint); font-style:italic; font-weight:500;">Solicitado pelo link público (sem login)</span></div>'
     ));
 
-  var backOnclick = adminMode ? ((p.status==='solicitado' || p.status==='recusado') ? "PS.go({name:'admin-solicitacoes'})" : "PS.go({name:'admin-processos'})")
-    : (publicMode ? "PS.go({name:'link-publico', etapa:'acompanhar'})" : "PS.go({name:'cliente-processos'})");
-  var podeDesistir = !adminMode && p.status!=='concluido' && p.status!=='cancelado';
+  var backOnclick = (p.status==='solicitado' || p.status==='recusado') ? "PS.go({name:'admin-solicitacoes'})" : "PS.go({name:'admin-processos'})";
 
   var atualizacoesCard = '<div class="card" style="padding:1.2rem 1.3rem;"><span class="eyebrow">Atualizações</span><div style="margin-top:.9rem; display:flex; flex-direction:column;">'+histHtml+'</div></div>';
-
-  var observacaoClienteCard = (!adminMode && p.status!=='cancelado') ? (''+
-    '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;">'+
-      '<span class="eyebrow">Enviar uma observação</span>'+
-      '<p style="font-size:.82rem; color:var(--ink-soft); line-height:1.45;">Precisa avisar a equipe sobre alguma alteração, dúvida ou informação adicional deste processo? Escreva abaixo.</p>'+
-      '<div id="obs-cliente-erro-'+p.id+'" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-      '<textarea id="obs-cliente-'+p.id+'" rows="3" placeholder="Ex.: gostaria de alterar o endereço informado no processo"></textarea>'+
-      '<button class="btn btn-accent btn-sm" style="align-self:flex-start;" onclick="PS.enviarObservacaoCliente(\''+p.id+'\')">Enviar observação</button>'+
-    '</div>') : '';
 
   var col1Html = ''+
     '<div class="card" style="padding:1.2rem 1.3rem;"><span class="eyebrow">Linha do tempo</span><div class="stepper" style="margin-top:.9rem;">'+stepperHtml+'</div></div>'+
@@ -4588,100 +4418,43 @@ function renderProcessoDetalhe(id, adminMode, publicMode){
   var col2Html = ''+
     protocoloCard+
     adminActions+
-    (adminMode ? ''+
       '<div class="card" style="padding:1.2rem 1.3rem;"><span class="eyebrow">Documentos do andamento do processo</span>'+
       '<span style="font-size:.7rem; color:var(--ink-faint); display:block; margin-top:.15rem;">Uso interno — não fica visível para o cliente.</span>'+
       '<div style="margin-top:.7rem; display:flex; flex-direction:column; gap:.6rem;">'+docsAndamentoHtml+'</div>'+
-      (adminMode ? '<label class="btn btn-ghost btn-sm" style="margin-top:.8rem; display:inline-flex;" for="anexo-andamento-'+p.id+'">+ Anexar documento de andamento</label><input type="file" id="anexo-andamento-'+p.id+'" style="display:none;" onchange="PS.anexarDocumento(\''+p.id+'\',\'andamento\')">' : '')+
-      '</div>' : '')+
-    (adminMode ? '' : (''+
-      '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;">'+
-        '<span class="eyebrow">Empresa</span>'+
-        empresaInfoHtml+
-        '<div class="info-block"><span class="lbl">Aberto em</span><span class="val">'+fmtDate(p.criadoEm)+'</span></div>'+
-      '</div>'+
-      atualizacoesCard+
-      observacaoClienteCard));
+      '<label class="btn btn-ghost btn-sm" style="margin-top:.8rem; display:inline-flex;" for="anexo-andamento-'+p.id+'">+ Anexar documento de andamento</label><input type="file" id="anexo-andamento-'+p.id+'" style="display:none;" onchange="PS.anexarDocumento(\''+jsArg(p.id)+'\')">'+
+      '</div>';
 
-  var col3Html = adminMode ? (''+
+  var col3Html = ''+
     atualizacoesCard+
     '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;">'+
       '<span class="eyebrow">Empresa</span>'+
       empresaInfoHtml+
       '<div class="info-block"><span class="lbl">Aberto em</span><span class="val">'+fmtDate(p.criadoEm)+'</span></div>'+
     '</div>'+
-    contatoClienteCard(p)) : '';
-
-  var gridCols = adminMode ? '1.05fr .95fr .95fr' : '1.3fr 1fr';
+    contatoClienteCard(p);
 
   return ''+
   '<button class="btn btn-ghost btn-sm" style="margin-bottom:1.1rem;" onclick="'+backOnclick+'">← Voltar</button>'+
-  '<div class="section-title"><div><span class="eyebrow">'+esc(s.categoria)+(adminMode?' · '+esc(nomeQuem):'')+'</span><h3 style="font-size:1.3rem; margin-top:.2rem;">'+esc(s.nome)+'</h3>'+
+  '<div class="section-title"><div><span class="eyebrow">'+esc(s.categoria)+' · '+esc(nomeQuem)+'</span><h3 style="font-size:1.3rem; margin-top:.2rem;">'+esc(s.nome)+'</h3>'+
     (p.protocolo ? '<div style="font-size:.78rem; color:var(--ink-faint); margin-top:.3rem;">Protocolo: <span class="mono" style="color:var(--ink-soft); font-weight:600;">'+esc(p.protocolo)+'</span></div>' : '')+
     '</div>'+
     '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:.5rem;">'+
       '<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;">'+
-        '<span class="pill status-'+p.status+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span>'+
+        '<span class="pill status-'+esc(p.status)+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span>'+
         (p.ordemServico ? '<span class="pill" style="background:var(--surface-2); color:var(--ink-soft);">Ordem de serviço: <span class="mono" style="margin-left:.3em; font-weight:700;">'+esc(p.ordemServico)+'</span></span>' : '')+
-        (adminMode ? htmlCodigoAcompanhamento(p) : '')+
-        (podeDesistir ? '<button class="btn btn-danger btn-sm" onclick="PS.openDesistirModal(\''+p.id+'\')">Desistir do processo</button>' : '')+
+        htmlCodigoAcompanhamento(p)+
       '</div>'+
-      (adminMode ? '<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;">'+responsavelInline+divisaoInline+'</div>' : '')+
+      '<div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;">'+responsavelInline+divisaoInline+'</div>'+
     '</div>'+
     '</div>'+
 
-  '<div class="detalhe-grid" style="display:grid; grid-template-columns:'+gridCols+'; gap:2.4rem; align-items:start;">'+
+  '<div class="detalhe-grid" style="display:grid; grid-template-columns:1.05fr .95fr .95fr; gap:2.4rem; align-items:start;">'+
     '<div style="display:flex; flex-direction:column; gap:1.2rem;">'+col1Html+'</div>'+
     '<div style="display:flex; flex-direction:column; gap:1.2rem;">'+col2Html+'</div>'+
-    (adminMode ? '<div style="display:flex; flex-direction:column; gap:1.2rem;">'+col3Html+'</div>' : '')+
+    '<div style="display:flex; flex-direction:column; gap:1.2rem;">'+col3Html+'</div>'+
   '</div>';
 }
 
-function openDesistirModal(id){
-  var p = state.processes.filter(function(x){return x.id===id;})[0];
-  if(!p) return;
-  var s = SERVICE_MAP[p.servicoId];
-  var html = ''+
-  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
-    '<div class="modal-box">'+
-      '<div class="panel-head"><h3 style="font-size:1.05rem;">Desistir do processo</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
-      '<div class="panel-body">'+
-        '<p style="color:var(--ink-soft); font-size:.9rem; line-height:1.55;">Você está prestes a desistir do processo <strong>'+esc(s.nome)+'</strong>. Esta ação não pode ser desfeita pelo portal.</p>'+
-        '<div class="obs-note" style="background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);">Lembre-se: em caso de desistência de processo já iniciado, <strong class="txt-danger-strong">as taxas pagas não são reembolsáveis e o valor do serviço não é devolvido</strong>.</div>'+
-        '<div id="desistir-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-        '<div class="field"><label>Justificativa do motivo da desistência <span class="req-mark">*</span></label><textarea id="desistir-justificativa" rows="4" placeholder="Descreva brevemente o motivo da desistência"></textarea></div>'+
-      '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Voltar</button><button class="btn btn-danger" style="background:var(--danger); color:#fff; border-color:var(--danger);" onclick="PS.confirmarDesistencia(\''+p.id+'\')">Confirmar desistência</button></div>'+
-    '</div>'+
-  '</div>';
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-async function confirmarDesistencia(id){
-  var p = state.processes.filter(function(x){return x.id===id;})[0];
-  var textarea = document.getElementById('desistir-justificativa');
-  var justificativa = textarea ? textarea.value.trim() : '';
-  var errBox = document.getElementById('desistir-erro');
-  if(!justificativa){
-    if(errBox){ errBox.textContent = 'Por favor, informe a justificativa do motivo da desistência.'; errBox.style.display='block'; }
-    return;
-  }
-  var statusAnterior = p.status;
-  p.status = 'cancelado';
-  p.historico.push({data:todayISO(), hora:nowHM(), texto:'Cliente solicitou a desistência do processo. Motivo: '+justificativa+'.', autor:'cliente'});
-  saveState();
-  closePanel();
-  render();
-  var ok = await salvarProcessoNoServidor(p);
-  if(ok){
-    toast('Desistência registrada.');
-  } else {
-    p.status = statusAnterior;
-    p.historico.pop();
-    saveState();
-    render();
-    toast('Não foi possível registrar a desistência. Verifique sua internet e tente novamente.');
-  }
-}
 async function atribuirDivisao(id, divisao){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p) return;
@@ -4715,29 +4488,6 @@ async function atribuirResponsavel(id, userId){
     saveState();
     render();
     toast('Não foi possível atribuir o responsável. Verifique sua internet e tente novamente.');
-  }
-}
-async function enviarObservacaoCliente(id){
-  var p = state.processes.filter(function(x){return x.id===id;})[0];
-  if(!p) return;
-  var textarea = document.getElementById('obs-cliente-'+id);
-  var texto = textarea ? textarea.value.trim() : '';
-  var errBox = document.getElementById('obs-cliente-erro-'+id);
-  if(!texto){
-    if(errBox){ errBox.textContent = 'Escreva sua observação antes de enviar.'; errBox.style.display='block'; }
-    return;
-  }
-  p.historico.push({data:todayISO(), hora:nowHM(), texto:'Observação do cliente: '+texto, autor:'cliente', tipo:'observacao_cliente'});
-  saveState();
-  render();
-  var ok = await salvarProcessoNoServidor(p);
-  if(ok){
-    toast('Observação enviada — a equipe Lucralize já pode ver no processo.');
-  } else {
-    p.historico.pop();
-    saveState();
-    render();
-    toast('Não foi possível enviar sua observação. Verifique sua internet e tente novamente.');
   }
 }
 
@@ -4798,13 +4548,6 @@ async function executarAvancoEtapa(id, pendenciasTexto){
        mais, feito deliberadamente pela equipe, conclui. */
     p.status='concluido';
     p.historico.push({data:todayISO(), hora:nowHM(), texto: etapas[p.etapaAtual]+' concluído. Processo concluído! 🎉'+sufixoPendencias, autor:nomeAutorAtual()});
-    /* Antes, se a equipe não tivesse anexado o documento final de verdade,
-       o sistema criava aqui um item fictício ("... - Documento Final.pdf")
-       sem nenhum arquivo real por trás — ele aparecia na tela do cliente como
-       se fosse baixável, mas o download sempre falhava, pois não existe path
-       nenhum associado. Removido: agora, sem anexo real, o cliente vê a
-       mensagem "os documentos finais ficarão disponíveis aqui" normalmente,
-       em vez de um link quebrado. */
   }
   prepararEmailDaEtapa(p, p.status==='concluido' ? 'concluido' : 'etapa', etapas[p.etapaAtual]);
   saveState();
@@ -4834,7 +4577,7 @@ function abrirModalComplemento(id){
         '<div id="complemento-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
         '<div class="field"><label>Informações pendentes <span class="req-mark">*</span></label><textarea id="complemento-texto" rows="4" placeholder="Ex.: falta o comprovante de endereço do sócio 2 e a definição do capital social"></textarea></div>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" onclick="PS.confirmarAvancoComplemento(\''+p.id+'\')">Confirmar</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" onclick="PS.confirmarAvancoComplemento(\''+jsArg(p.id)+'\')">Confirmar</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -4849,7 +4592,7 @@ function confirmarAvancoComplemento(id){
   }
   executarAvancoEtapa(id, texto);
 }
-function reiniciarProcessoOpcoesHtml(p, s){
+function reiniciarProcessoOpcoesHtml(p){
   var opcoes = (servicoSemPagamento(p.servicoId) ? [] : [{idx:-1, label:'Pagamento confirmado'}]).concat(etapasDoProcesso(p).map(function(label, i){ return {idx:i, label:label}; }));
   return opcoes.map(function(o){
     var atual = (p.status==='aguardando_pagamento' ? -1 : p.etapaAtual) === o.idx;
@@ -4859,7 +4602,6 @@ function reiniciarProcessoOpcoesHtml(p, s){
 function abrirModalReiniciar(id){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p) return;
-  var s = SERVICE_MAP[p.servicoId];
   var html = ''+
   '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
     '<div class="modal-box">'+
@@ -4867,9 +4609,9 @@ function abrirModalReiniciar(id){
       '<div class="panel-body">'+
         '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.5;">Selecione para qual etapa da linha do tempo este processo deve voltar. O histórico, documentos e observações já registrados são mantidos.</p>'+
         '<div id="reiniciar-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
-        '<div class="radio-group">'+reiniciarProcessoOpcoesHtml(p, s)+'</div>'+
+        '<div class="radio-group">'+reiniciarProcessoOpcoesHtml(p)+'</div>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarReiniciarProcesso(\''+p.id+'\')">Confirmar reinício</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarReiniciarProcesso(\''+jsArg(p.id)+'\')">Confirmar reinício</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -4907,16 +4649,16 @@ async function confirmarReiniciarProcesso(id){
     toast('Não foi possível reiniciar o processo. Verifique sua internet e tente novamente.');
   }
 }
-async function anexarDocumento(id, categoria){
-  var input = document.getElementById('anexo-'+categoria+'-'+id);
+/* anexa um documento de andamento (uso interno da equipe; o cliente não vê) */
+async function anexarDocumento(id){
+  var input = document.getElementById('anexo-andamento-'+id);
   if(!input || !input.files || !input.files[0]) return;
   var file = input.files[0];
-  var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
-  var subpasta = categoria==='andamento' ? 'andamento' : 'finais';
+  var campo = 'documentosAndamento';
   toast('Enviando arquivo...');
   _opsLocais++;      /* segura a atualização em segundo plano durante o envio e a gravação */
   try{
-    var doc = await uploadArquivoReal(file, id, subpasta);
+    var doc = await uploadArquivoReal(file, id, 'andamento');
     /* o processo é buscado DEPOIS do envio: durante o envio a tela pode ter sido atualizada e a cópia antiga já não é a que aparece */
     var p = state.processes.filter(function(x){return x.id===id;})[0];
     if(!p){ toast('O arquivo foi enviado, mas o processo não foi encontrado na tela. Atualize a página e confira.'); return; }
@@ -4924,7 +4666,7 @@ async function anexarDocumento(id, categoria){
     render();
     var ok = await salvarProcessoNoServidor(p);
     if(ok){
-      toast('Documento '+(categoria==='andamento'?'de andamento':'final')+' anexado.');
+      toast('Documento de andamento anexado.');
     } else {
       /* tira só este documento: restaurar o processo inteiro apagaria também outro anexo feito enquanto este gravava */
       p[campo] = (p[campo] || []).filter(function(d){ return d !== doc; });
@@ -4940,7 +4682,10 @@ async function anexarDocumento(id, categoria){
   }
 }
 
-/* ---------- ADMIN: visão geral ---------- */
+/* =========================================================
+   TELAS DA EQUIPE — visão geral, lista de processos, excluídos e usuários
+   ========================================================= */
+/* ---------- visão geral ---------- */
 function renderAdminOverview(){
   var procs = processosVisiveis();
   var mesAtual = todayISO().slice(0,7);
@@ -4977,7 +4722,7 @@ function renderAdminOverview(){
   if(tipoBuckets.length){
     var tipoCards = tipoBuckets.map(function(b){
       var active = b.id===adminTipoFiltro;
-      return '<button type="button" class="card kpi tipo-kpi'+(active?' active':'')+'" onclick="PS.selecionarTipoProcesso(\''+b.id+'\')">'+
+      return '<button type="button" class="card kpi tipo-kpi'+(active?' active':'')+'" onclick="PS.selecionarTipoProcesso(\''+jsArg(b.id)+'\')">'+
         '<span class="label"><span class="tipo-kpi-ic">'+b.ic+'</span>'+esc(b.label)+'</span>'+
         '<span class="value">'+b.qtd+'</span>'+
         '<span class="sub">processo'+(b.qtd===1?'':'s')+'</span>'+
@@ -4992,10 +4737,10 @@ function renderAdminOverview(){
     var rows = selecionado.procsDoTipo.slice().sort(compararOrdemSolicitacao).map(function(p){
       var s=SERVICE_MAP[p.servicoId];
       var divisaoTxt = divisaoLabelCurto(divisaoForProcesso(p)) || '—';
-      return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+p.id+'\'})">'+
+      return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+jsArg(p.id)+'\'})">'+
         '<td><strong>'+esc(nomeParaProcesso(p))+'</strong></td><td>'+esc(s.nome)+'</td>'+
         '<td>'+esc(divisaoTxt)+'</td>'+
-        '<td><span class="pill status-'+p.status+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span><div class="mono" style="font-size:.7rem; color:var(--ink-faint); margin-top:.25rem;">OS: '+esc(p.ordemServico||'—')+'</div></td>'+
+        '<td><span class="pill status-'+esc(p.status)+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span><div class="mono" style="font-size:.7rem; color:var(--ink-faint); margin-top:.25rem;">OS: '+esc(p.ordemServico||'—')+'</div></td>'+
         '<td class="mono" style="color:var(--ink-faint);">'+fmtDate(p.criadoEm)+'</td>'+
       '</tr>';
     }).join('');
@@ -5033,15 +4778,13 @@ function processoRowHtml(p){
   var s=SERVICE_MAP[p.servicoId] || {nome:'Serviço não identificado'};
   var divisaoTxt = divisaoLabelCurto(divisaoForProcesso(p)) || '—';
   var respLinha = p.responsavelId ? getUser(p.responsavelId) : null, nomeResp = respLinha ? respLinha.nome : '—';
-  var uAtual = currentUser();
-  var podeExcluirIncluir = !uAtual || uAtual.role!=='freelancer';
-  var excluirBtn = podeExcluirIncluir ? ('<button class="btn btn-danger btn-sm" style="margin-left:.4rem;" onclick="event.stopPropagation(); PS.abrirModalExcluirProcesso(\''+p.id+'\')">Excluir</button>') : '';
-  return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+p.id+'\'})">'+
+  var excluirBtn = '<button class="btn btn-danger btn-sm" style="margin-left:.4rem;" onclick="event.stopPropagation(); PS.abrirModalExcluirProcesso(\''+jsArg(p.id)+'\')">Excluir</button>';
+  return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+jsArg(p.id)+'\'})">'+
     '<td><strong>'+esc(nomeParaProcesso(p))+'</strong><div style="font-size:.72rem; color:var(--ink-faint);" class="mono">'+esc(docParaProcesso(p))+'</div></td>'+
     '<td>'+esc(s.nome)+'</td>'+
     '<td>'+esc(divisaoTxt)+'</td>'+
-    ((uAtual && uAtual.role==='freelancer') ? '' : '<td>'+esc(nomeResp)+'</td>')+
-    '<td><span class="pill status-'+p.status+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span><div class="mono" style="font-size:.7rem; color:var(--ink-faint); margin-top:.25rem;">OS: '+esc(p.ordemServico||'—')+'</div></td>'+
+    '<td>'+esc(nomeResp)+'</td>'+
+    '<td><span class="pill status-'+esc(p.status)+'"><span class="pill-dot"></span>'+statusLabel(p.status)+'</span><div class="mono" style="font-size:.7rem; color:var(--ink-faint); margin-top:.25rem;">OS: '+esc(p.ordemServico||'—')+'</div></td>'+
     '<td class="mono">'+fmtDate(p.criadoEm)+'</td>'+
     '<td style="text-align:right; white-space:nowrap;"><span class="btn btn-ghost btn-sm">Abrir →</span>'+excluirBtn+'</td>'+
   '</tr>';
@@ -5057,7 +4800,7 @@ function renderAdminProcessosRows(){
     if(f.divisao && divisaoForProcesso(p)!==f.divisao) return false;
     return true;
   }).map(processoRowHtml).join('');
-  return rows || '<tr><td colspan="'+((currentUser() && currentUser().role==='freelancer') ? 6 : 7)+'" style="text-align:center; color:var(--ink-faint); padding:1.6rem 0;">Nenhum processo encontrado para os filtros selecionados.</td></tr>';
+  return rows || '<tr><td colspan="7" style="text-align:center; color:var(--ink-faint); padding:1.6rem 0;">Nenhum processo encontrado para os filtros selecionados.</td></tr>';
 }
 function filtrarProcessosLive(){
   adminProcessosFiltro.empresa = (document.getElementById('flt-empresa')||{}).value || '';
@@ -5082,30 +4825,25 @@ function renderAdminProcessos(){
   var divisaoOptions = ['tech','contabilidade'].map(function(d){
     return '<option value="'+d+'"'+(f.divisao===d?' selected':'')+'>'+divisaoLabelCurto(d)+'</option>';
   }).join('');
-  var uFiltro = currentUser(), ehFreelancerLista = !!uFiltro && uFiltro.role==='freelancer';
   var competenciaOptions = competenciasDosProcessos().map(function(m){ return '<option value="'+m+'"'+(f.competencia===m?' selected':'')+'>'+formatMesAno(m)+'</option>'; }).join('');
   var responsavelOptions = '<option value="">Todos</option><option value="__sem__"'+(f.responsavel==='__sem__'?' selected':'')+'>Sem responsável</option>'+pessoasResponsaveis().map(function(u){ return '<option value="'+u.id+'"'+(f.responsavel===u.id?' selected':'')+'>'+esc(u.nome)+'</option>'; }).join('');
   var temFiltro = f.empresa || f.servico || f.status || f.competencia || f.responsavel || f.divisao;
-  var uAtual = currentUser();
-  var podeIncluirProcesso = !uAtual || uAtual.role!=='freelancer';
   var theadHtml = '<thead><tr>'+
     '<th>Empresa<input type="text" class="th-filtro" id="flt-empresa" placeholder="Empresa, OS ou código" title="Busque por empresa, CNPJ, número da OS ou código de acompanhamento" value="'+esc(f.empresa)+'" oninput="PS.filtrarProcessosLive()"></th>'+
     '<th>Serviço<select class="th-filtro" id="flt-servico" onchange="PS.filtrarProcessosLive()"><option value="">Todos</option>'+servicoOptions+'</select></th>'+
     '<th>Lucralize<select class="th-filtro" id="flt-divisao" onchange="PS.filtrarProcessosLive()"><option value="">Todas</option>'+divisaoOptions+'</select></th>'+
-    (ehFreelancerLista ? '' : '<th>Responsável<select class="th-filtro" id="flt-responsavel" onchange="PS.filtrarProcessosLive()">'+responsavelOptions+'</select></th>')+
+    '<th>Responsável<select class="th-filtro" id="flt-responsavel" onchange="PS.filtrarProcessosLive()">'+responsavelOptions+'</select></th>'+
     '<th>Status<select class="th-filtro" id="flt-status" onchange="PS.filtrarProcessosLive()"><option value="">Todos</option>'+statusOptions+'</select></th>'+
     '<th>Aberto em<select class="th-filtro" id="flt-competencia" onchange="PS.filtrarProcessosLive()"><option value="">Todas as competências</option>'+competenciaOptions+'</select></th>'+
     '<th></th>'+
   '</tr></thead>';
   return '<div class="section-title"><h3>Processos</h3><div style="display:flex; gap:.6rem; align-items:center;">'+
       (temFiltro ? '<button class="btn btn-ghost btn-sm" onclick="PS.limparFiltrosProcessos()">Limpar filtros</button>' : '')+
-      (podeIncluirProcesso ? '<button class="btn btn-accent btn-sm" onclick="PS.abrirModalIncluirProcesso()">+ Incluir processo manualmente</button>' : '')+
+      '<button class="btn btn-accent btn-sm" onclick="PS.abrirModalIncluirProcesso()">+ Incluir processo manualmente</button>'+
     '</div></div>'+
     '<div class="card u-scroll-x"><table>'+theadHtml+'<tbody id="admin-processos-tbody">'+renderAdminProcessosRows()+'</tbody></table></div>';
 }
 function abrirModalExcluirProcesso(id){
-  var uAtual = currentUser();
-  if(uAtual && uAtual.role==='freelancer') return;
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p) return;
   var s = SERVICE_MAP[p.servicoId] || {nome:'Serviço não identificado'};
@@ -5120,7 +4858,7 @@ function abrirModalExcluirProcesso(id){
         '<p id="excluir-teste-nota" style="display:none; font-size:.78rem; color:var(--ink-faint); margin:-.3rem 0 0;">Processos marcados como teste não exigem justificativa e não ficam registrados em Processos excluídos.</p>'+
         '<div class="field"><label id="excluir-justificativa-label">Justificativa da exclusão <span class="req-mark">*</span></label><textarea id="excluir-justificativa" rows="4" placeholder="Explique o motivo da exclusão deste processo"></textarea></div>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" id="excluir-confirmar-btn" onclick="PS.confirmarExcluirProcesso(\''+id+'\')">Excluir processo</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" id="excluir-confirmar-btn" onclick="PS.confirmarExcluirProcesso(\''+jsArg(id)+'\')">Excluir processo</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -5249,13 +4987,13 @@ function renderAdminUsuarios(){
     var c = u.empresaId ? getCompany(u.empresaId) : null;
     var chip = roleChipInfo(u);
     return '<tr>'+
-      '<td><div style="display:flex; align-items:center; gap:.6rem;"><span class="demo-avatar" style="width:30px; height:30px; font-size:.68rem; background:var(--surface-2);">'+initials(u.nome)+'</span><div><strong style="font-size:.85rem;">'+esc(u.nome)+'</strong><div style="font-size:.74rem; color:var(--ink-faint);">'+esc(u.email)+'</div>'+
+      '<td><div style="display:flex; align-items:center; gap:.6rem;"><span class="avatar" style="width:30px; height:30px; font-size:.68rem; background:var(--surface-2);">'+esc(initials(u.nome))+'</span><div><strong style="font-size:.85rem;">'+esc(u.nome)+'</strong><div style="font-size:.74rem; color:var(--ink-faint);">'+esc(u.email)+'</div>'+
       '</div></div></td>'+
       '<td>'+(c?esc(c.nome):'—')+'</td>'+
       '<td><span class="role-chip '+chip.cls+'">'+chip.label+'</span></td>'+
       '<td class="mono">'+esc(u.telefone||'—')+'</td>'+
       '<td style="font-size:.78rem; color:var(--ink-soft);">'+esc(fmtDataHora(u.ultimoAcesso))+'</td>'+
-      '<td><button class="btn btn-ghost btn-sm" onclick="PS.abrirEditarUsuario(\''+u.id+'\')">Editar</button>'+(u.id===(currentUser()||{}).id ? '' : '<button class="btn btn-danger btn-sm" style="margin-left:.35rem;" onclick="PS.abrirModalExcluirUsuario(\''+u.id+'\')">Excluir</button>')+'</td>'+
+      '<td><button class="btn btn-ghost btn-sm" onclick="PS.abrirEditarUsuario(\''+jsArg(u.id)+'\')">Editar</button>'+(u.id===(currentUser()||{}).id ? '' : '<button class="btn btn-danger btn-sm" style="margin-left:.35rem;" onclick="PS.abrirModalExcluirUsuario(\''+jsArg(u.id)+'\')">Excluir</button>')+'</td>'+
     '</tr>';
   }).join('');
   return ''+
@@ -5264,26 +5002,9 @@ function renderAdminUsuarios(){
   '<div class="card u-scroll-x"><table><thead><tr><th>Nome</th><th>Empresa</th><th>Perfil</th><th>Telefone</th><th>Último acesso</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-function euCamposEmpresaHtml(c){
-  return ''+
-    '<div class="form-grid">'+
-      '<div class="field full"><label>Razão social da empresa</label><input id="eu-empresa" type="text" value="'+esc(c?c.nome:'')+'"></div>'+
-      '<div class="field"><label>CNPJ</label><input id="eu-cnpj" type="text" value="'+esc(c?c.cnpj:'')+'" oninput="PS.maskCnpj(this)"></div>'+
-      '<div class="field"><label>Tipo societário</label><input id="eu-tipo" type="text" value="'+esc(c?c.tipo:'')+'"></div>'+
-    '</div>';
-}
-
 function abrirEditarUsuario(id){
   var u = getUser(id);
   if(!u) return;
-  var c = u.empresaId ? getCompany(u.empresaId) : null;
-  var empresaSelectHtml = ''+
-    '<div class="field full"><label>Empresa vinculada</label>'+
-      '<select id="eu-empresa-select" onchange="PS.euAtualizarCamposEmpresa()">'+
-        '<option value="">Selecione uma empresa…</option>'+
-        state.companies.map(function(comp){ return '<option value="'+comp.id+'"'+(u.empresaId===comp.id?' selected':'')+'>'+esc(comp.nome)+'</option>'; }).join('')+
-      '</select>'+
-    '</div>';
   var html = ''+
   '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
     '<div class="modal-box">'+
@@ -5293,95 +5014,47 @@ function abrirEditarUsuario(id){
         '<div class="field full">'+
           '<label>Perfil de acesso</label>'+
           '<div class="radio-group">'+
-            '<label class="radio-option"><input type="radio" name="eu-tipo-acesso" value="admin"'+(u.role==='admin'?' checked':'')+' onchange="PS.euToggleTipoAcesso()"> Administrador</label>'+
-            '<label class="radio-option"><input type="radio" name="eu-tipo-acesso" value="colaborador"'+(u.role==='colaborador'?' checked':'')+' onchange="PS.euToggleTipoAcesso()"> Colaborador</label>'+
-            '<label class="radio-option"><input type="radio" name="eu-tipo-acesso" value="freelancer"'+(u.role==='freelancer'?' checked':'')+' onchange="PS.euToggleTipoAcesso()"> Freelancer</label>'+
+            '<label class="radio-option"><input type="radio" name="eu-tipo-acesso" value="admin"'+(u.role==='admin'?' checked':'')+'> Administrador</label>'+
+            '<label class="radio-option"><input type="radio" name="eu-tipo-acesso" value="colaborador"'+(u.role==='colaborador'?' checked':'')+'> Colaborador</label>'+
           '</div>'+
         '</div>'+
         '<div class="form-grid">'+
           '<div class="field full"><label>Nome completo <span class="req-mark">*</span></label><input id="eu-nome" type="text" value="'+esc(u.nome||'')+'"></div>'+
-                  '</div>'+
-        '<p style="font-size:.76rem; color:var(--ink-faint);">O e-mail de acesso não pode ser alterado por aqui — entre em contato com o suporte técnico, se necessário.</p>'+
-        '<div id="eu-empresa-wrap" style="display:'+(u.role==='cliente'?'block':'none')+';">'+
-          empresaSelectHtml+
-          '<div id="eu-empresa-campos">'+euCamposEmpresaHtml(c)+'</div>'+
         '</div>'+
+        '<p style="font-size:.76rem; color:var(--ink-faint);">O e-mail de acesso não pode ser alterado por aqui — entre em contato com o suporte técnico, se necessário.</p>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" id="eu-salvar-btn" onclick="PS.salvarEdicaoUsuario(\''+id+'\')">Salvar alterações</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" id="eu-salvar-btn" onclick="PS.salvarEdicaoUsuario(\''+jsArg(id)+'\')">Salvar alterações</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
-  /* "Freelancer" só aparece para quem já é freelancer; telefone só para Administrador */
-  var frRadio = document.querySelector('input[name="eu-tipo-acesso"][value="freelancer"]');
-  if(frRadio && u.role !== 'freelancer'){ var frLabel = frRadio.closest('label'); if(frLabel) frLabel.remove(); }
-  var telInput = document.getElementById('eu-telefone'), telCampo = telInput && telInput.closest('.field');
-  if(telCampo){ telCampo.id = 'eu-telefone-wrap'; telCampo.style.display = u.role==='admin' ? '' : 'none'; }
-}
-function euToggleTipoAcesso(){
-  var tipo = (document.querySelector('input[name="eu-tipo-acesso"]:checked')||{}).value || 'admin';
-  var empresaWrap = document.getElementById('eu-empresa-wrap');
-  if(empresaWrap) empresaWrap.style.display = tipo==='cliente' ? 'block' : 'none';
-  var telWrap = document.getElementById('eu-telefone-wrap');
-  if(telWrap) telWrap.style.display = tipo==='admin' ? '' : 'none';
-}
-function euAtualizarCamposEmpresa(){
-  var sel = document.getElementById('eu-empresa-select');
-  var campos = document.getElementById('eu-empresa-campos');
-  if(!sel || !campos) return;
-  var c = sel.value ? getCompany(sel.value) : null;
-  campos.innerHTML = euCamposEmpresaHtml(c);
 }
 async function salvarEdicaoUsuario(id){
   var u = getUser(id);
   if(!u) return;
   var nome = ((document.getElementById('eu-nome')||{}).value || '').trim();
-  var telefone = ((document.getElementById('eu-telefone')||{}).value || '').trim();
   var novoRole = (document.querySelector('input[name="eu-tipo-acesso"]:checked')||{}).value || u.role;
   var errBox = document.getElementById('eu-erro');
   if(!nome){ if(errBox){ errBox.textContent='Preencha o nome completo.'; errBox.style.display='block'; } return; }
-  if(novoRole==='cliente'){
-    var selEl = document.getElementById('eu-empresa-select');
-    if(!selEl || !selEl.value){ if(errBox){ errBox.textContent='Selecione a empresa vinculada a este cliente.'; errBox.style.display='block'; } return; }
-  }
   var btn = document.getElementById('eu-salvar-btn');
   if(btn) btn.disabled = true;
 
   var snapshotUsuario = JSON.parse(JSON.stringify(u));
   u.nome = nome;
-  /* o telefone não é mais pedido: o que já estiver cadastrado fica como está */
   u.role = novoRole;
   if(novoRole!=='admin') u.principal = false;
 
-  var c = null, snapshotEmpresa = null;
-  if(novoRole==='cliente'){
-    var empresaSelecionadaId = (document.getElementById('eu-empresa-select')||{}).value;
-    u.empresaId = empresaSelecionadaId;
-    c = getCompany(empresaSelecionadaId);
-    snapshotEmpresa = c ? JSON.parse(JSON.stringify(c)) : null;
-    if(c){
-      var empresaEl = document.getElementById('eu-empresa');
-      var cnpjEl = document.getElementById('eu-cnpj');
-      var tipoEl = document.getElementById('eu-tipo');
-      if(empresaEl && empresaEl.value.trim()) c.nome = empresaEl.value.trim();
-      if(cnpjEl && cnpjEl.value.trim()) c.cnpj = cnpjEl.value.trim();
-      if(tipoEl && tipoEl.value.trim()) c.tipo = tipoEl.value.trim();
-    }
-  } else {
-    u.empresaId = null;
-  }
+  u.empresaId = null;
 
   saveState();
   render();
 
   var resUsuario = await planilha.from('usuarios').update(usuarioParaRow(u)).eq('id', u.id);
-  var resEmpresa = c ? await planilha.from('empresas').update(empresaParaRow(c)).eq('id', c.id) : {error:null};
 
-  if(!resUsuario.error && !resEmpresa.error){
+  if(!resUsuario.error){
     closePanel();
     toast('Cadastro atualizado.');
   } else {
     Object.assign(u, snapshotUsuario);
-    if(c && snapshotEmpresa) Object.assign(c, snapshotEmpresa);
     saveState();
     render();
     toast('Não foi possível salvar as alterações. Verifique sua internet e tente novamente.');
@@ -5452,7 +5125,8 @@ function abrirModalAcessoCriado(nome, email){
 }
 
 /* =========================================================
-   AJUSTES (documento "Instruções para ajustes no portal")
+   REGRAS DE SERVIÇO E AÇÕES AVULSAS
+   Serviços sem pagamento, exclusão de documentos e de usuários, "vistoria não necessária" do alvará.
    ========================================================= */
 /* Transformação e Abertura de CNPJ não têm etapa de pagamento: o processo já nasce em
    "Recebimento de informações" (primeira etapa da linha do tempo). */
@@ -5462,33 +5136,28 @@ function iniciarSemPagamento(p){
   return p;
 }
 
-/* ---------- Exclusão de arquivos anexados pela equipe (andamento e documentos finais) ---------- */
-function abrirModalExcluirArquivo(id, categoria, idx, path){
+/* ---------- Exclusão de documentos de andamento anexados pela equipe ---------- */
+function abrirModalExcluirArquivo(id, idx, path){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p) return;
-  var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
-  var d = (p[campo]||[])[idx];
+  var d = (p.documentosAndamento||[])[idx];
   if(!d){ toast('Arquivo não encontrado. Atualize a tela e tente novamente.'); return; }
-  var aviso = categoria==='finais'
-    ? 'Ele será removido do processo e deixará de aparecer também para o cliente.'
-    : 'Ele será removido do processo.';
   var html = ''+
   '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
     '<div class="modal-box">'+
       '<div class="panel-head"><h3 style="font-size:1.05rem;">Excluir arquivo</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
       '<div class="panel-body">'+
-        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Tem certeza que deseja excluir o arquivo <strong style="color:var(--ink);">'+esc(d.nome)+'</strong>? '+aviso+' Esta ação não pode ser desfeita.</p>'+
+        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Tem certeza que deseja excluir o arquivo <strong style="color:var(--ink);">'+esc(d.nome)+'</strong>? Ele será removido do processo. Esta ação não pode ser desfeita.</p>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirArquivo(\''+id+'\',\''+categoria+'\','+idx+',\''+esc(path||'')+'\')">Excluir arquivo</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirArquivo(\''+jsArg(id)+'\','+idx+',\''+jsArg(path||'')+'\')">Excluir arquivo</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
 }
-async function confirmarExcluirArquivo(id, categoria, idx, path){
+async function confirmarExcluirArquivo(id, idx, path){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
   if(!p){ closePanel(); return; }
-  var campo = categoria==='andamento' ? 'documentosAndamento' : 'documentosFinais';
-  var lista = p[campo] || [];
+  var lista = p.documentosAndamento || [];
   var pos = -1;
   if(lista[idx] && (lista[idx].path||'')===(path||'')) pos = idx;
   else if(path){ for(var i=0;i<lista.length;i++){ if(lista[i].path===path){ pos = i; break; } } }
@@ -5533,7 +5202,7 @@ function abrirModalExcluirUsuario(id){
         '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Tem certeza que deseja excluir <strong style="color:var(--ink);">'+esc(u.nome)+'</strong> ('+esc(u.email||'')+')? A pessoa perde o acesso ao portal.'+
           (qtd===1 ? ' O processo sob responsabilidade dela ficará sem responsável.' : (qtd ? ' Os '+qtd+' processos sob responsabilidade dela ficarão sem responsável.' : ''))+' Esta ação não pode ser desfeita.</p>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirUsuario(\''+id+'\')">Excluir usuário</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarExcluirUsuario(\''+jsArg(id)+'\')">Excluir usuário</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -5560,7 +5229,7 @@ function botaoVistoriaNaoNecessaria(p){
   if(p.servicoId!=='alvara-funcionamento' || p.status!=='em_andamento' || p.vistoriaNaoNecessaria) return '';
   var iV = etapasDoProcesso(p).indexOf(ETAPA_VISTORIA);
   if(iV<0 || p.etapaAtual<iV-1 || p.etapaAtual>iV) return '';   /* só quando a vistoria é a próxima etapa ou a atual */
-  return '<button class="btn btn-ghost btn-block" onclick="PS.vistoriaNaoNecessaria(\''+p.id+'\')">Vistoria não necessária</button>';
+  return '<button class="btn btn-ghost btn-block" onclick="PS.vistoriaNaoNecessaria(\''+jsArg(p.id)+'\')">Vistoria não necessária</button>';
 }
 async function vistoriaNaoNecessaria(id){
   var p = state.processes.filter(function(x){return x.id===id;})[0];
@@ -5587,7 +5256,7 @@ async function vistoriaNaoNecessaria(id){
 }
 
 /* =========================================================
-   CÓDIGO DE ACOMPANHAMENTO (parte do cliente, etapa 1: lado da equipe)
+   CÓDIGO DE ACOMPANHAMENTO DO CLIENTE
    Cada processo tem a OS sequencial (interna) e um código aleatório, que é o que o
    cliente usa para consultar o processo sem ter conta. O código fica no próprio
    processo (p.codigoAcompanhamento).
@@ -5625,9 +5294,8 @@ function htmlCodigoAcompanhamento(p){
   if(!p.codigoAcompanhamento){
     return '<span class="pill" style="'+estilo+' color:var(--ink-faint);">Sem código de acompanhamento</span>';
   }
-  var c = esc(p.codigoAcompanhamento);
-  return '<span class="pill" style="'+estilo+'">Código do cliente: <span class="mono" style="margin-left:.3em; font-weight:700;">'+c+'</span>'+
-    '<button class="btn btn-ghost btn-sm" style="margin-left:.5em; padding:.15em .6em;" title="Copiar código" onclick="PS.copiarCodigo(\''+c+'\')">Copiar</button></span>';
+  return '<span class="pill" style="'+estilo+'">Código do cliente: <span class="mono" style="margin-left:.3em; font-weight:700;">'+esc(p.codigoAcompanhamento)+'</span>'+
+    '<button class="btn btn-ghost btn-sm" style="margin-left:.5em; padding:.15em .6em;" title="Copiar código" onclick="PS.copiarCodigo(\''+jsArg(p.codigoAcompanhamento)+'\')">Copiar</button></span>';
 }
 function copiarCodigo(codigo){
   function feito(){ toast('Código copiado: '+codigo); }
@@ -5665,7 +5333,7 @@ function passosParaCliente(p){
     if(!servicoSemPagamento(p.servicoId)) ini.push({label:'Pagamento confirmado', state:'pendente'});
     return ini.concat(s ? etapasDoProcesso(p).map(function(e){ return {label:e, state:'pendente'}; }) : []);
   }
-  var steps = s ? stepStates(p, s) : [];
+  var steps = s ? stepStates(p) : [];
   return (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
 }
 function publicoDoProcesso(p){
@@ -5884,11 +5552,11 @@ function renderLinkPublicoConfirmacao(codigo){
       '<h2 style="font-size:1.2rem;">Solicitação enviada!</h2>'+
       '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.55;">Recebemos o seu pedido. A equipe da Lucralize vai analisá-lo e entrar em contato.</p>'+
       '<div class="card mono" style="padding:.85rem 1.3rem; font-size:1.25rem; font-weight:700; color:var(--primary); letter-spacing:.06em; border:1px solid var(--border);">'+esc(codigo||'')+'</div>'+
-      '<button class="btn btn-ghost btn-sm" onclick="PS.copiarCodigo(\''+esc(codigo||'')+'\')">Copiar código</button>'+
+      '<button class="btn btn-ghost btn-sm" onclick="PS.copiarCodigo(\''+jsArg(codigo||'')+'\')">Copiar código</button>'+
     '</div>'+
     '<div class="obs-note" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink); line-height:1.5;"><strong>Anote este código agora.</strong> Ele é a única forma de consultar o andamento do seu pedido, sem usuário e senha. Se perder o código, entre em contato com a Lucralize informando o nome da empresa.</div>'+
     htmlAnexosConfirmacao()+
-    '<button class="btn btn-primary btn-block"'+(anexosPendentes() ? ' disabled' : '')+' onclick="PS.clienteConsultarAgora(\''+esc(codigo||'')+'\')">Consultar este pedido agora</button>'+
+    '<button class="btn btn-primary btn-block"'+(anexosPendentes() ? ' disabled' : '')+' onclick="PS.clienteConsultarAgora(\''+jsArg(codigo||'')+'\')">Consultar este pedido agora</button>'+
     '<button class="btn btn-ghost btn-block"'+(anexosPendentes() ? ' disabled' : '')+' onclick="PS.linkPublicoSair()">Voltar para o início</button>'
   , {});
 }
@@ -5987,7 +5655,7 @@ function renderAdminSolicitacoes(){
   var pend = solicitacoesPendentes(), rec = solicitacoesRecusadas();
   function linha(p, extra){
     var s = SERVICE_MAP[p.servicoId] || {nome:'Serviço não identificado'}, es = p.empresaSolicitada || {};
-    return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+p.id+'\'})">'+
+    return '<tr class="clickable" onclick="PS.go({name:\'admin-processo-detalhe\', id:\''+jsArg(p.id)+'\'})">'+
       '<td><strong>'+esc(nomeEmpresaDoPedido(p))+'</strong><div class="mono" style="font-size:.72rem; color:var(--ink-faint);">'+esc(es.cnpj || '')+'</div></td>'+
       '<td>'+esc(s.nome)+'</td>'+
       '<td>'+esc((p.visitante && p.visitante.nome) || '—')+'<div class="mono" style="font-size:.72rem; color:var(--ink-faint);">'+esc((p.visitante && p.visitante.telefone) || '')+'</div></td>'+
@@ -6015,14 +5683,14 @@ function acoesSolicitacao(p){
     return cab+'<span class="eyebrow">Pedido recusado</span>'+
       '<div class="pill status-recusado" style="align-self:flex-start;">Recusado'+(p.recusadoPor ? ' por '+esc(p.recusadoPor) : '')+'</div>'+
       '<p style="font-size:.84rem; color:var(--ink-soft); line-height:1.5;"><strong>Motivo mostrado ao cliente:</strong> '+esc(p.motivoRecusa || '—')+'</p>'+
-      '<button class="btn btn-ghost btn-block" onclick="PS.reabrirSolicitacao(\''+p.id+'\')">↺ Reabrir para análise</button>'+
-      '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button></div>';
+      '<button class="btn btn-ghost btn-block" onclick="PS.reabrirSolicitacao(\''+jsArg(p.id)+'\')">↺ Reabrir para análise</button>'+
+      '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+jsArg(p.id)+'\')">🗑 Excluir processo</button></div>';
   }
   return cab+'<span class="eyebrow">Análise do pedido</span>'+
     '<p style="font-size:.84rem; color:var(--ink-soft); line-height:1.5;">Pedido enviado pelo cliente, ainda sem número de OS. Ao aprovar, o sistema gera a OS e cadastra ou reaproveita a empresa pelo CNPJ.</p>'+
-    '<button class="btn btn-primary btn-block" id="btn-aprovar" onclick="PS.aprovarSolicitacao(\''+p.id+'\')">Aprovar e gerar OS</button>'+
-    '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalRecusar(\''+p.id+'\')">Recusar pedido</button>'+
-    '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+p.id+'\')">🗑 Excluir processo</button></div>';
+    '<button class="btn btn-primary btn-block" id="btn-aprovar" onclick="PS.aprovarSolicitacao(\''+jsArg(p.id)+'\')">Aprovar e gerar OS</button>'+
+    '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalRecusar(\''+jsArg(p.id)+'\')">Recusar pedido</button>'+
+    '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+jsArg(p.id)+'\')">🗑 Excluir processo</button></div>';
 }
 
 /* ---------- equipe: aprovar, recusar, reabrir ---------- */
@@ -6087,7 +5755,7 @@ function abrirModalRecusar(id){
         '<div class="field"><label>Motivo da recusa <span class="req-mark">*</span></label><textarea id="recusa-motivo" rows="4" maxlength="300" placeholder="Ex.: Pedido em duplicidade. Entre em contato para ajustarmos os dados."></textarea></div>'+
         '<div class="obs-note" style="background:var(--warning-bg); border:1px solid var(--warning); color:var(--ink);"><strong>Atenção:</strong> o cliente verá esse motivo ao consultar o código dele.</div>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" id="btn-recusar" onclick="PS.confirmarRecusa(\''+id+'\')">Recusar pedido</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" id="btn-recusar" onclick="PS.confirmarRecusa(\''+jsArg(id)+'\')">Recusar pedido</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
@@ -6258,7 +5926,8 @@ function completarCaminhosDoCliente(p){
   (function andar(o){
     if(!o || typeof o !== 'object') return;
     if(Array.isArray(o)){ o.forEach(andar); return; }
-    if(o.pendenteUpload && o.nomeArq && !o.path) o.path = p.id + '/' + o.nomeArq;
+    /* o nome vem do pedido do cliente: só vira caminho se for um nome de arquivo simples (sem "/" ou "..") */
+    if(o.pendenteUpload && o.nomeArq && !o.path && /^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/.test(String(o.nomeArq)) && String(o.nomeArq).indexOf('..') === -1) o.path = p.id + '/' + o.nomeArq;
     Object.keys(o).forEach(function(k){ andar(o[k]); });
   })(p);
   return p;
@@ -6371,15 +6040,14 @@ function cnaesHtml(texto){
 }
 
 /* =========================================================
-   AJUSTES DA RODADA DE OUTUBRO: faturamento por pagamento confirmado, contato do cliente, inclusão manual,
-   filtros da lista de processos e lista de responsáveis.
+   RESPONSÁVEIS, FATURAMENTO, CONTATO DO CLIENTE, FILTROS E INCLUSÃO MANUAL
    ========================================================= */
 
 /* ---------- pessoas da equipe que podem ser responsáveis ---------- */
-function rotuloPapel(role){ return role==='admin' ? 'Administrador' : (role==='freelancer' ? 'Freelancer' : 'Colaborador'); }
+function rotuloPapel(role){ return role==='admin' ? 'Administrador' : 'Colaborador'; }
 function pessoasResponsaveis(idAtual){
   return state.users.filter(function(u){
-    return (u.ativo !== false && (u.role==='admin' || u.role==='colaborador' || u.role==='freelancer')) || (idAtual && u.id===idAtual);
+    return (u.ativo !== false && (u.role==='admin' || u.role==='colaborador')) || (idAtual && u.id===idAtual);
   }).slice().sort(function(a, b){ return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'); });
 }
 function opcoesResponsaveisHtml(selecionado){
@@ -6411,7 +6079,7 @@ function competenciasDosProcessos(){
 function contatoClienteCard(p){
   var v = p.visitante || {}, c = p.solicitanteContato || {};
   var bruto = String(c.email || v.email || '').trim(), valido = !!emailDoCliente(p);
-  var uAtual = currentUser(), podeEditar = !!uAtual && uAtual.role !== 'freelancer';
+  var podeEditar = !!currentUser();
   var nome = v.nome || '', tel = v.telefone || c.telefone || '';
   return '<div class="card" style="padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;">'+
     '<span class="eyebrow">Contato do cliente</span>'+
@@ -6420,7 +6088,7 @@ function contatoClienteCard(p){
     '<div class="info-block"><span class="lbl">E-mail</span><span class="val">'+
       (bruto ? esc(bruto)+(valido ? '' : '<div style="font-size:.76rem; color:var(--danger); font-weight:500; margin-top:.2rem;">E-mail com formato inválido: o cliente não receberá os avisos de etapa.</div>') : '<span style="color:var(--danger); font-weight:500;">Não informado: o cliente não receberá os avisos de etapa.</span>')+
     '</span></div>'+
-    (podeEditar ? '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.abrirModalEmailCliente(\''+p.id+'\')">'+(bruto ? 'Alterar e-mail' : 'Informar e-mail')+'</button>' : '')+
+    (podeEditar ? '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.abrirModalEmailCliente(\''+jsArg(p.id)+'\')">'+(bruto ? 'Alterar e-mail' : 'Informar e-mail')+'</button>' : '')+
   '</div>';
 }
 function abrirModalEmailCliente(id){
@@ -6435,13 +6103,13 @@ function abrirModalEmailCliente(id){
         '<div id="email-cliente-erro" class="obs-note" style="display:none; background:var(--danger-bg); border:1px solid var(--danger); color:var(--ink);"></div>'+
         '<div class="field full"><label>E-mail <span class="req-mark">*</span></label><input id="email-cliente-input" type="email" value="'+esc(atual)+'" placeholder="cliente@exemplo.com"></div>'+
       '</div>'+
-      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" id="email-cliente-salvar" onclick="PS.salvarEmailCliente(\''+id+'\')">Salvar</button></div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-primary" id="email-cliente-salvar" onclick="PS.salvarEmailCliente(\''+jsArg(id)+'\')">Salvar</button></div>'+
     '</div>'+
   '</div>';
   document.body.insertAdjacentHTML('beforeend', html);
 }
 async function salvarEmailCliente(id){
-  var uAtual = currentUser(); if(!uAtual || uAtual.role==='freelancer') return;
+  if(!currentUser()) return;
   var p = state.processes.filter(function(x){ return x.id===id; })[0]; if(!p) return;
   var novo = ((document.getElementById('email-cliente-input') || {}).value || '').trim();
   var erroEl = document.getElementById('email-cliente-erro');
@@ -6462,7 +6130,6 @@ async function salvarEmailCliente(id){
 /* ---------- incluir processo manualmente: sem lista de empresas; a empresa é identificada pelo CNPJ ---------- */
 function abrirModalIncluirProcesso(){
   var uAtual = currentUser();
-  if(uAtual && uAtual.role==='freelancer') return;
   var servicoOptions = SERVICES.map(function(s, i){ return '<option value="'+s.id+'"'+(i===0 ? ' selected' : '')+'>'+esc(s.nome)+'</option>'; }).join('');
   var cnpjOculto = SERVICES[0].id === 'abertura-cnpj';
   var html = ''+
@@ -6537,17 +6204,20 @@ async function confirmarIncluirProcessoManual(){
     return;
   }
 
+  var ordemServico;
+  try{ ordemServico = await gerarOSEstrita(); }
+  catch(e){ console.error('Gerar OS:', e); falha('Não foi possível gerar o número da OS agora. Verifique a internet e tente de novo.'); return; }
+
   var processo = {
     id:id, servicoId:servicoId, status:status, etapaAtual:etapaAtual,
     criadoEm: dataAbertura, protocolo:'',
     historico:[{data:dataAbertura, hora:nowHM(), texto:'Processo incluído manualmente pela equipe Lucralize a partir de um registro anterior a este portal.'+(arquivo ? ' Documento original anexado: '+arquivo.nome+'.' : ''), autor:nomeAutorAtual()}],
     documentosAndamento: arquivo ? [arquivo] : [],
-    documentosFinais: [],
     formularioManual: {arquivo:arquivo || null},
     empresaId: empresa.id,
     divisao: divisao,
     responsavelId: responsavelId,
-    ordemServico: await gerarOrdemServico(),
+    ordemServico: ordemServico,
     codigoAcompanhamento: gerarCodigoAcompanhamento()
   };
 
@@ -6564,7 +6234,8 @@ async function confirmarIncluirProcessoManual(){
 }
 
 /* =========================================================
-   7) EXPOSIÇÃO GLOBAL + INIT
+   FUNÇÕES CHAMADAS PELOS BOTÕES (window.PS)
+   Os botões da tela chamam PS.nomeDaFunção(...). Toda função usada num onclick precisa estar nesta lista.
    ========================================================= */
 /* fluxos que leem, esperam e só depois gravam: seguram a atualização em segundo plano do começo ao fim */
 function comOpLocal(orig){ return async function(){ _opsLocais++; try{ return await orig.apply(this, arguments); } finally{ _opsLocais--; } }; }
@@ -6579,16 +6250,14 @@ window.PS = {
   logout: logout, go: go, setTheme: setTheme, openService: openService, closePanel: closePanel, toggleItemInterno: toggleItemInterno,
   selecionarTipoProcesso: selecionarTipoProcesso, mudarMesConcluidos: mudarMesConcluidos,
   openSolicitarForm: openSolicitarForm, onDocFileChosen: onDocFileChosen, enviarSolicitacao: enviarSolicitacao,
-  avancarEtapa: avancarEtapa, anexarDocumento: anexarDocumento, anexarDocPendente: anexarDocPendente, baixarArquivoReal: baixarArquivoReal,
+  avancarEtapa: avancarEtapa, anexarDocumento: anexarDocumento, baixarArquivoReal: baixarArquivoReal,
   openNovoUsuario: openNovoUsuario, criarUsuario: criarUsuario, abrirEditarUsuario: abrirEditarUsuario, salvarEdicaoUsuario: salvarEdicaoUsuario,
-  euToggleTipoAcesso: euToggleTipoAcesso, euAtualizarCamposEmpresa: euAtualizarCamposEmpresa,
   salvarProtocolo: salvarProtocolo, filtrarProcessosLive: filtrarProcessosLive, limparFiltrosProcessos: limparFiltrosProcessos,
   fabAtualizarSocios: fabAtualizarSocios, fabRegenerarSocios: fabRegenerarSocios, fabNomeSocioChanged: fabNomeSocioChanged,
   fabToggleEstadoCivil: fabToggleEstadoCivil, fabFileChosen: fabFileChosen, fabToggleEndereco: fabToggleEndereco,
   fabToggleIptuModo: fabToggleIptuModo, fabToggleNatureza: fabToggleNatureza,
   fabToggleCiente: fabToggleCiente, enviarSolicitacaoAbertura: enviarSolicitacaoAbertura,
-  fabToggleIrModo: fabToggleIrModo, openDesistirModal: openDesistirModal, confirmarDesistencia: confirmarDesistencia,
-  enviarObservacaoCliente: enviarObservacaoCliente, atribuirResponsavel: atribuirResponsavel, atribuirDivisao: atribuirDivisao,
+  fabToggleIrModo: fabToggleIrModo, atribuirResponsavel: atribuirResponsavel, atribuirDivisao: atribuirDivisao,
   maskTelefone: maskTelefone, maskCnpj: maskCnpj, maskDigitos: maskDigitos,
   altToggleTipos: altToggleTipos, altToggleIptuModo: altToggleIptuModo, altRegenerarSocios: altRegenerarSocios, altToggleLocal: altToggleLocal,
   altToggleNomeFantasia: altToggleNomeFantasia, altToggleCiente: altToggleCiente, enviarSolicitacaoAlteracao: enviarSolicitacaoAlteracao,
@@ -6614,18 +6283,9 @@ window.PS = {
   clienteIr: clienteIr, clienteVoltar: clienteVoltar, clienteNovaConsulta: clienteNovaConsulta, clienteMascara: clienteMascara, clienteConsultar: clienteConsultar
 };
 
-/* Link avulso (ex.: para envio por WhatsApp): abrir direto na tela de
-   solicitar/acompanhar sem usuário e senha, sem passar pela tela de login.
-   Não altera o botão já existente na tela de login. */
-function aplicarLinkAvulso(){
-  var h = (location.hash||'').replace('#','').toLowerCase();
-  /* fase 2 (cliente): o link avulso será religado ao formulário externo */
-}
-
 /* =========================================================
-   8) INICIALIZAÇÃO — sessão da conta Microsoft
+   INICIALIZAÇÃO
    ========================================================= */
-aplicarLinkAvulso();
 render();
 boot();
 })();
