@@ -378,6 +378,14 @@
   /* ---------- pedidos de clientes (aba "Processos sem OS") ---------- */
   .pill.status-solicitado{background:var(--warning-bg); color:var(--warning);}
   .pill.status-recusado{background:var(--danger-bg); color:var(--danger);}
+  .lg-bar{display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin-bottom:.9rem;}
+  .lg-bar input, .lg-bar select{padding:.5em .7em; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:.82rem; font-family:inherit;}
+  .lg-bar input[type=text]{flex:1; min-width:180px;}
+  .pill.lg-ENTROU, .pill.lg-BAIXOU, .pill.lg-ENVIOU_EMAIL{background:var(--primary-soft); color:var(--primary);}
+  .pill.lg-SAIU, .pill.lg-ABRIU{background:var(--surface-2); color:var(--ink-soft);}
+  .pill.lg-CRIOU{background:var(--success-bg); color:var(--success);}
+  .pill.lg-ALTEROU{background:var(--warning-bg); color:var(--warning);}
+  .pill.lg-EXCLUIU, .pill.lg-ACESSO_NEGADO{background:var(--danger-bg); color:var(--danger);}
   .nav-item .nav-badge{margin-left:auto; background:#F72642; color:#fff; border-radius:999px; font-size:.68rem; font-weight:700; min-width:20px; height:20px; padding:0 .45em; display:inline-flex; align-items:center; justify-content:center;}
 </style>
 </head>
@@ -405,7 +413,8 @@
    SEGURANÇA — o que vem do cliente nunca é confiável (qualquer pessoa pode chamar o fluxo Criar):
    • todo texto vai para a tela com esc(); dentro de onclick="…" com jsArg();
    • ids lidos da planilha precisam passar em ID_SEGURO; datas só aparecem se estiverem em AAAA-MM-DD;
-   • a Content-Security-Policy no <head> só deixa a página falar com a Microsoft e com os fluxos.
+   • a Content-Security-Policy no <head> só deixa a página falar com a Microsoft e com os fluxos;
+   • a tela Logs é só do administrador e só lê: nenhuma função edita ou apaga linhas de log.
 
    AO PUBLICAR: troque o BUILD_ID (seção VERSÃO PUBLICADA).
 
@@ -414,7 +423,7 @@
      NAVEGAÇÃO, LOGIN E INICIALIZAÇÃO · MONTAGEM DA TELA · ÁREA PÚBLICA · TELA DA EQUIPE · CATÁLOGO NA TELA ·
      FORMULÁRIOS DE SOLICITAÇÃO DO CLIENTE · DETALHE DO PROCESSO · TELAS DA EQUIPE · REGRAS DE SERVIÇO ·
      CÓDIGO DE ACOMPANHAMENTO · ÁREA DO CLIENTE · SOLICITAÇÃO PELO CLIENTE · ANEXOS DO CLIENTE ·
-     E-MAIL AO CLIENTE · ATIVIDADES (CNAE) · RESPONSÁVEIS… · FUNÇÕES CHAMADAS PELOS BOTÕES · INICIALIZAÇÃO
+     E-MAIL AO CLIENTE · ATIVIDADES (CNAE) · LOGS DE USUÁRIOS · RESPONSÁVEIS… · FUNÇÕES CHAMADAS PELOS BOTÕES · INICIALIZAÇÃO
    ===================================================================================================== */
 
 var LOGO_DATA_URI_LINK_PUBLICO = "data:image/png;base64," +
@@ -899,7 +908,7 @@ function estadoInicial(){
 
 /* Identificador da versão publicada: TROQUE A CADA PUBLICAÇÃO. Quem estiver com o portal aberto recebe o aviso
    "Existe uma versão mais nova" (ver verificarNovaVersaoDisponivel); sem trocar, a aba continua com o código antigo. */
-var BUILD_ID = '20261021-revisao1';
+var BUILD_ID = '20261026-logs1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
    O app chama "planilha.*", com a mesma forma de uma API de banco de dados
@@ -1216,7 +1225,7 @@ async function xlComSessao(fn){
     if(sid){ try{ await msGraph('POST', '/drives/' + SP.driveId + '/items/' + _wbItemId + '/workbook/closeSession', undefined, { 'workbook-session-id': sid }); }catch(e){ console.warn('closeSession:', e); } }
   }
 }
-async function xlGravar(t, rows, naoAtualizaBase){
+async function xlGravar(t, rows, naoAtualizaBase, semLog){
   /* grava TODAS as linhas recebidas; quem chama já separou o que mudou (ver XQ._run) */
   var cfg = XLT[t];
   if(!rows.length) return rows;
@@ -1226,11 +1235,12 @@ async function xlGravar(t, rows, naoAtualizaBase){
       var row = rows[i];
       var cells = cfg.unshape(row), sig = xlSig(t, row);
       var arr = cfg.cols.map(function(k){ return cells[k] == null ? '' : cells[k]; });
-      var idx = xlFindIdx(t, raw, row.id);
+      var idx = xlFindIdx(t, raw, row.id), novo = idx < 0, sigAntes = (_xlBaseSig[t] || {})[row.id];
       if(idx < 0) idx = raw.findIndex(xlBlank);              /* reaproveita a linha vazia que o Excel exige */
       if(idx >= 0){ await msGraph('PATCH', xlRowsUrl(t) + '/itemAt(index=' + idx + ')', { values: [arr] }); raw[idx] = arr; }
       else { await msGraph('POST', xlRowsUrl(t) + '/add', { values: [arr] }); raw.push(arr); }
-      xlLembrarGravacao(t, row, (_xlBaseSig[t] || {})[row.id], sig);
+      xlLembrarGravacao(t, row, sigAntes, sig);
+      if(!semLog) lgGravou(t, row, novo, sigAntes, sig);
       if(!naoAtualizaBase){ (_xlBaseSig[t] = _xlBaseSig[t] || {})[row.id] = sig; }
     }
   });
@@ -1238,10 +1248,11 @@ async function xlGravar(t, rows, naoAtualizaBase){
   return rows;
 }
 async function xlRemover(t, id){
-  var removidos = 0, cfg = XLT[t];
+  var removidos = 0, cfg = XLT[t], descricao = '';
   await xlEnfileirar(async function(){
     var raw = await xlRaw(t), idx = xlFindIdx(t, raw, id);
     if(idx < 0) return;
+    descricao = lgDescreve(t, xlCellsDe(cfg, raw[idx]));       /* o nome do item precisa ser lido antes de apagar */
     var restantes = raw.filter(function(r, i){ return i !== idx && !xlBlank(r); }).length;
     if(raw.length <= 1 || restantes === 0){        /* o Excel não aceita tabela sem nenhuma linha: limpa em vez de apagar */
       await msGraph('PATCH', xlRowsUrl(t) + '/itemAt(index=' + idx + ')', { values: [cfg.cols.map(function(){ return ''; })] });
@@ -1250,7 +1261,7 @@ async function xlRemover(t, id){
     }
     removidos = 1;
   });
-  if(removidos) xlLembrarExclusao(t, id);
+  if(removidos){ xlLembrarExclusao(t, id); lgRegistrar('EXCLUIU', descricao); }
   if(_xlBaseSig[t]) delete _xlBaseSig[t][id];
   delete _xlCache[t];
   return removidos;
@@ -1276,7 +1287,7 @@ async function xlRegistrarAcesso(){
   var r = rows.filter(function(x){ return x.id === _xlUser.id; })[0];
   if(!r) return;
   r.dados.ultimoAcesso = new Date().toISOString();
-  await xlGravar('usuarios', [r], true);      /* não atualiza a assinatura-base: evita regravar depois */
+  await xlGravar('usuarios', [r], true, true);      /* não atualiza a assinatura-base: evita regravar depois; fora do log (o ENTROU já registra) */
 }
 async function xlCriarUsuario(body){
   var rows = await xlSelect('usuarios', true), email = xlNorm(body.email);
@@ -1298,6 +1309,7 @@ XQ.prototype.eq = function(c, v){ this.f.push([c, v]); return this; };
 XQ.prototype.single = function(){ this.one = 'single'; return this; };
 XQ.prototype.maybeSingle = function(){ this.one = 'maybe'; return this; };
 XQ.prototype.semBase = function(){ this._semBase = true; return this; };
+XQ.prototype.semLog = function(){ this._semLog = true; return this; };       /* gravação automática do sistema: não é ação da pessoa */
 XQ.prototype.then = function(a, b){ return this._run().then(a, b); };
 XQ.prototype._filtra = function(rows){
   return this.f.reduce(function(acc, ff){ return acc.filter(function(r){ return String(r[ff[0]]) === String(ff[1]); }); }, rows);
@@ -1313,11 +1325,11 @@ XQ.prototype._run = async function(){
          tela desatualizada nunca regrava por cima do que outra pessoa salvou */
       var forcar = this.op === 'insert', base = _xlBaseSig[t] || {};
       var sujas = this.payload.filter(function(row){ return forcar || base[row.id] !== xlSig(t, row); });
-      await xlGravar(t, sujas);
+      await xlGravar(t, sujas, false, this._semLog);
       data = this.payload;
     } else if(this.op === 'update'){
       var alvo = this._filtra([this.payload]);
-      await xlGravar(t, alvo);
+      await xlGravar(t, alvo, false, this._semLog);
       data = alvo;
     } else if(this.op === 'delete'){
       var ids = this.f.filter(function(ff){ return ff[0] === 'id'; }).map(function(ff){ return ff[1]; });
@@ -1353,16 +1365,16 @@ var planilha = {
   arquivos: {
     upload: async function(path, file){
       try{
-        if(file.size > UP_SIMPLES_MAX){ await msUploadGrande(SP.docsFolder + '/' + path, file); return { data: { path: path }, error: null }; }
-        var buf = await file.arrayBuffer();
-        await msGraphRaw('PUT', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + path) + ':/content', buf, file.type || 'application/octet-stream');
+        if(file.size > UP_SIMPLES_MAX) await msUploadGrande(SP.docsFolder + '/' + path, file);
+        else await msGraphRaw('PUT', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + path) + ':/content', await file.arrayBuffer(), file.type || 'application/octet-stream');
+        lgRegistrar('CRIOU', 'Anexo ' + path);
         return { data: { path: path }, error: null };
       }catch(e){ console.error('[sharepoint] upload:', e); return { data: null, error: { message: e.message } }; }
     },
     remove: async function(paths){
       try{
         for(var i = 0; i < paths.length; i++){
-          try{ await msGraph('DELETE', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + paths[i])); }
+          try{ await msGraph('DELETE', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + paths[i])); lgRegistrar('EXCLUIU', 'Anexo ' + paths[i]); }
           catch(e){ if(e.status !== 404) throw e; }      /* já não existe: tudo certo */
         }
         return { data: paths, error: null };
@@ -1372,6 +1384,7 @@ var planilha = {
       try{
         var it = await msGraph('GET', '/drives/' + SP.driveId + '/root:/' + msEncPath(SP.docsFolder + '/' + path));
         var url = it['@microsoft.graph.downloadUrl'] || it.webUrl;
+        if(url) lgRegistrar('BAIXOU', 'Anexo ' + path);
         return url ? { data: { signedUrl: url }, error: null } : { data: null, error: { message: 'Arquivo sem link de download.' } };
       }catch(e){ console.error('[sharepoint] download:', e); return { data: null, error: { message: e.message } }; }
     }
@@ -1472,22 +1485,23 @@ function rowParaExcluido(row){ var x = Object.assign({}, row.dados); x.id = row.
 
 /* ---- envia para a planilha o que mudou em memória; um erro em uma tabela (por
    exemplo, falta de permissão) nunca interrompe as outras ---- */
-function sincronizarPlanilha(){
+function sincronizarPlanilha(silencioso){
   if(!_xlUser) return;      /* só a equipe logada grava na planilha */
   var u = currentUser();
+  function q(t, rows){ var x = planilha.from(t).upsert(rows); if(silencioso) x.semLog(); return x; }      /* silencioso: acerto automático do login, não é ação da pessoa */
   if(state.processes && state.processes.length){
-    planilha.from('processos').upsert(state.processes.map(processoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar processos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+    q('processos', state.processes.map(processoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar processos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
   }
   if(u && (u.role==='admin' || u.role==='colaborador')){
     if(state.processosExcluidos && state.processosExcluidos.length){
-      planilha.from('processos_excluidos').upsert(state.processosExcluidos.map(excluidoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar excluídos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+      q('processos_excluidos', state.processosExcluidos.map(excluidoParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar excluídos:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
     }
     if(state.companies && state.companies.length){
-      planilha.from('empresas').upsert(state.companies.map(empresaParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar empresas:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+      q('empresas', state.companies.map(empresaParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar empresas:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
     }
   }
   if(u && u.role==='admin' && state.users && state.users.length){
-    planilha.from('usuarios').upsert(state.users.map(usuarioParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar usuários:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
+    q('usuarios', state.users.map(usuarioParaRow)).then(function(r){ if(r.error){ console.warn('Sincronizar usuários:', r.error.message); toast('Não foi possível salvar na planilha: '+r.error.message); } });
   }
 }
 
@@ -1887,8 +1901,16 @@ function seal(size, color){
 /* =========================================================
    NAVEGAÇÃO, LOGIN E INICIALIZAÇÃO
    ========================================================= */
+/* nome de cada tela: título no cabeçalho e coluna "Tela" dos logs */
+var TITULOS_TELA = {
+  'admin-overview':'Visão geral', 'admin-processos':'Todos os processos', 'admin-catalogo':'Catálogo de serviços',
+  'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS',
+  'admin-processo-detalhe':'Detalhe do processo', 'admin-logs':'Logs de usuários',
+  'carregando':'Login', 'login':'Login', 'sem-acesso':'Login'
+};
 function go(view){
-  state.view = view; saveState(); render(); window.scrollTo(0,0);
+  state.view = view; lgAbriuTela(); saveState(); render(); window.scrollTo(0,0);
+  if(view && view.name==='admin-logs') lgOpen();
   var telasQueMerecemDadosFrescos = {'admin-solicitacoes':1,'admin-processos':1,'admin-processo-detalhe':1,'admin-overview':1};
   if(view && telasQueMerecemDadosFrescos[view.name]){
     atualizarDadosDoServidorSilenciosamente();
@@ -1904,10 +1926,13 @@ async function login(userId){
     return;
   }
   planilha.rpc('registrar_ultimo_acesso').then(function(r){ if(r.error) console.warn('Registrar último acesso:', r.error.message); });
+  lgRecuperaFila(); _lgUltimaTela = null; _lgTokenSaida = null; lgRegistrar('ENTROU', '');
   state.view = {name:'admin-overview'};
+  lgAbriuTela();
   render();
 }
 function logout(){
+  lgRegistrar('SAIU', ''); _lgTokenSaida = _msToken; lgFlush();       /* antes de msSair(), que limpa o token */
   msSair();
   homeCliente=false; homeMsg='';
   state.session=null;
@@ -2034,10 +2059,13 @@ async function entrarComContaMicrosoft(){
   if(!achado) motivo = 'Sua conta Microsoft ('+(emails[0]||'?')+') não está cadastrada na equipe do Portal Societário. Peça a um administrador para incluir seu e-mail.';
   else if(achado.dados.ativo === false) motivo = 'Seu acesso ao Portal Societário está inativo. Fale com um administrador.';
   else if(['admin','colaborador'].indexOf(achado.role) === -1) motivo = 'Seu cadastro está sem um perfil válido (admin ou colaborador). Fale com um administrador.';
-  if(motivo){ semAcessoMsg = motivo; state.session = null; state.view = {name:'sem-acesso'}; render(); return; }
+  if(motivo){
+    lgRegistrar('ACESSO_NEGADO', !achado ? 'e-mail não cadastrado' : achado.dados.ativo === false ? 'usuário inativo' : 'perfil inválido', {nome: me.displayName, email: emails[0]});
+    _lgTokenSaida = _msToken; lgFlush();
+    semAcessoMsg = motivo; state.session = null; state.view = {name:'sem-acesso'}; render(); return; }
   _xlUser = {id: achado.id, role: achado.role};
   await login(achado.id);
-  sincronizarPlanilha();      /* regrava só o que está desatualizado (ex.: colunas Codigo/Publico de processos antigos) */
+  sincronizarPlanilha(true);      /* regrava só o que está desatualizado (ex.: colunas Codigo/Publico de processos antigos) */
 }
 async function entrarFuncionario(){
   homeMsg = '';
@@ -2163,8 +2191,9 @@ function renderShell(u){
     {k:'admin-excluidos', ic:'🗑', label:'Processos excluídos'}
   ];
   if(u.role==='admin') items.push({k:'admin-usuarios', ic:'◎', label:'Usuários'});
-  /* a tela de usuários é só do administrador */
-  if(u.role!=='admin' && state.view.name==='admin-usuarios'){
+  if(u.role==='admin') items.push({k:'admin-logs', ic:'☰', label:'Logs'});
+  /* as telas de usuários e de logs são só do administrador */
+  if(u.role!=='admin' && (state.view.name==='admin-usuarios' || state.view.name==='admin-logs')){
     state.view = {name:'admin-processos'};
   }
   var navHtml = items.map(function(it){
@@ -2172,11 +2201,7 @@ function renderShell(u){
     return '<button class="nav-item'+(active?' active':'')+'" onclick="PS.go({name:\''+jsArg(it.k)+'\'})"><span class="ic">'+it.ic+'</span>'+esc(it.label)+(it.badge ? '<span class="nav-badge">'+it.badge+'</span>' : '')+'</button>';
   }).join('');
 
-  var pageTitle = {
-    'admin-overview':'Visão geral', 'admin-processos':'Todos os processos', 'admin-catalogo':'Catálogo de serviços',
-    'admin-usuarios':'Usuários e acessos', 'admin-excluidos':'Processos excluídos', 'admin-solicitacoes':'Processos sem OS',
-    'admin-processo-detalhe':'Detalhe do processo'
-  }[state.view.name] || '';
+  var pageTitle = TITULOS_TELA[state.view.name] || '';
   var crumb = 'Painel Lucralize';
 
   var body;
@@ -2187,6 +2212,7 @@ function renderShell(u){
   else if(state.view.name==='admin-excluidos') body = renderAdminExcluidos();
   else if(state.view.name==='admin-solicitacoes') body = renderAdminSolicitacoes();
   else if(state.view.name==='admin-processo-detalhe') body = renderProcessoDetalhe(state.view.id);
+  else if(state.view.name==='admin-logs') body = renderAdminLogs();
   else body = '<div class="empty-state">Tela não encontrada.</div>';
 
   return ''+
@@ -5989,7 +6015,7 @@ async function dispararEmail(p){
       var resp = await fetch(CLIENTE_API.email, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({acao:'enviar', processoId:p.id, evento:ev}), signal:ctl.signal, cache:'no-store'});
       if(!resp.ok) throw new Error('HTTP ' + resp.status);
       var j = await resp.json();
-      if(j && j.ok === true) return;
+      if(j && j.ok === true){ lgRegistrar('ENVIOU_EMAIL', 'Processo ' + (p.ordemServico || p.id) + ' — evento ' + ev); return; }
       throw new Error('resposta: ' + (j && j.erro));
     }catch(e){
       ultimo = e; console.error('Aviso de e-mail (tentativa ' + t + '):', e);
@@ -6234,6 +6260,313 @@ async function confirmarIncluirProcessoManual(){
 }
 
 /* =========================================================
+   LOGS DE USUÁRIOS (só administradores)
+   Cada ação da equipe vira uma linha de texto:
+       AAAA-MM-DD HH:MM:SS | Nome | e-mail | AÇÃO | Tela | Detalhe
+   As linhas ficam num arquivo .txt POR MÊS (log-AAAA-MM.txt), na pasta "logs" dentro da pasta do portal no SharePoint.
+   • lgRegistrar() só coloca a linha numa fila (com cópia no navegador, para não perder se a aba fechar);
+   • lgFlush() grava a fila 8 segundos depois, ao sair e ao esconder a aba: lê o arquivo do mês, acrescenta as
+     linhas e regrava com "If-Match" (eTag); se outra pessoa gravou no meio (erro 412), lê de novo e repete —
+     por isso ninguém apaga o log do outro;
+   • as gravações na planilha e nos anexos são registradas por xlGravar, xlRemover e planilha.arquivos;
+   • a tela "Logs" só LÊ o arquivo: não existe, em nenhum ponto do código, função para editar ou apagar linhas;
+   • o log nunca derruba o portal: erro aqui vai só para o console e a linha continua na fila.
+   As chamadas do log usam fetch próprio (não passam por msGraph) para o log não registrar a si mesmo.
+   Atenção: quem tem acesso à pasta no SharePoint também consegue abrir o .txt por lá.
+   ========================================================= */
+var LG_FILA_KEY = 'ps_log_fila', LG_FILA_MAX = 500, LG_ESPERA_MS = 8000, LG_TENTATIVAS = 6, LG_POR_PAGINA = 300, LG_FUSO = 'America/Sao_Paulo';
+var LG_ACOES = ['ENTROU', 'SAIU', 'ACESSO_NEGADO', 'ABRIU', 'CRIOU', 'ALTEROU', 'EXCLUIU', 'BAIXOU', 'ENVIOU_EMAIL'];
+var LG_PASTA = SP.workbookPath.replace(/\/[^/]+$/, '') + '/logs';     /* ao lado da planilha: .../portal-societario/logs */
+var _lgFila = [], _lgTimer = null, _lgOcupado = false, _lgUltimaTela = null, _lgAvisou = false, _lgTokenSaida = null, _lgLimite = LG_POR_PAGINA;
+var lgFiltro = {mes:'', de:'', ate:'', usuario:'', acao:'', busca:''};
+var lgVista = {meses:[], linhas:[], pastaUrl:'', carregando:false, erro:''};
+
+function lgEhAdmin(){ var u = currentUser(); return !!u && u.role === 'admin'; }     /* isAdmin() inclui colaborador: aqui só admin */
+function lgNomeArquivo(mes){ return 'log-' + mes + '.txt'; }                           /* mes = 'AAAA-MM' */
+function lgCaminho(nome){ return '/drives/' + SP.driveId + '/root:/' + msEncPath(LG_PASTA + (nome ? '/' + nome : '')); }
+/* "2026-10-26 13:10:22" no horário de Brasília, qualquer que seja o fuso do computador */
+function lgAgora(){ return new Date().toLocaleString('sv-SE', {timeZone: LG_FUSO}); }
+/* uma linha só: sem quebra de linha e sem o separador " | " dentro dos textos */
+function lgLimpa(s, max){
+  var t = String(s == null ? '' : s).replace(/[\r\n\t]+/g, ' ').replace(/\s*\|\s*/g, ' / ').trim();
+  max = max || 160;
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
+}
+function lgTelaAtual(){ var n = state.view && state.view.name; return TITULOS_TELA[n] || n || ''; }
+function lgSalvaFila(){
+  try{ if(_lgFila.length) localStorage.setItem(LG_FILA_KEY, JSON.stringify(_lgFila)); else localStorage.removeItem(LG_FILA_KEY); }
+  catch(e){ /* sem armazenamento local: a fila continua só em memória */ }
+}
+function lgRecuperaFila(){
+  try{
+    var salva = JSON.parse(localStorage.getItem(LG_FILA_KEY) || '[]');
+    if(Array.isArray(salva)) salva.forEach(function(l){ if(typeof l === 'string' && _lgFila.length < LG_FILA_MAX && _lgFila.indexOf(l) === -1) _lgFila.push(l); });
+  }catch(e){ /* cópia local ilegível: ignora */ }
+}
+/* quem = {nome, email}; sem ele, usa a pessoa logada */
+function lgRegistrar(acao, detalhe, quem){
+  try{
+    var u = quem || currentUser();
+    if(!u || !u.email) return;
+    var linha = [lgAgora(), lgLimpa(u.nome, 60), lgLimpa(u.email, 80), acao, lgLimpa(lgTelaAtual(), 60), lgLimpa(detalhe, 400)].join(' | ');
+    if(_lgFila.length >= LG_FILA_MAX) _lgFila.shift();      /* fila cheia (gravação falhando): descarta a mais antiga */
+    _lgFila.push(linha);
+    lgSalvaFila();
+    if(!_lgTimer) _lgTimer = setTimeout(lgFlush, LG_ESPERA_MS);       /* conta a partir da 1ª linha pendente: uso contínuo não adia a gravação para sempre */
+  }catch(e){ console.warn('Log: não registrou', e); }
+}
+/* uma linha "ABRIU" por tela aberta (só a equipe; a tela de logs só entra para administrador) */
+function lgAbriuTela(){
+  var v = state.view, u = currentUser();
+  if(!v || !u) return;
+  if(v.name === 'admin-logs' && !lgEhAdmin()) return;
+  var chave = v.name + '|' + (v.id || '');
+  if(chave === _lgUltimaTela) return;
+  _lgUltimaTela = chave;
+  var det = '';
+  if(v.name === 'admin-processo-detalhe'){ var p = state.processes.filter(function(x){ return x.id === v.id; })[0]; det = p ? 'Processo ' + (p.ordemServico || p.id) : ''; }
+  lgRegistrar('ABRIU', det);
+}
+
+/* ---------- texto das gravações feitas pelo portal ---------- */
+function lgDescreve(t, c){
+  if(t === 'usuarios') return 'Usuário ' + c.Email + ' (perfil ' + c.Role + ', ' + (c.Ativo === 'Não' ? 'inativo' : 'ativo') + ')';
+  if(t === 'empresas') return 'Empresa ' + c.Nome;
+  if(t === 'processos') return 'Processo ' + (c.OS || c.Id) + ' (serviço ' + c.ServicoId + ', status ' + c.Status + ')';
+  if(t === 'processos_excluidos') return 'Processo excluído ' + (c.OS || c.Id);
+  return t + ' ' + c.Id;
+}
+/* nomes (nunca valores) dos campos que mudaram desde a última leitura: mostra o que foi mexido sem copiar dados do cliente */
+function lgCamposAlterados(t, row, sigAntes){
+  try{
+    var antes = JSON.parse(sigAntes).json || {}, depois = JSON.parse(xlSig(t, row)).json || {}, campos = [], vistos = {};
+    Object.keys(antes).concat(Object.keys(depois)).forEach(function(k){
+      if(vistos[k]) return; vistos[k] = 1;
+      if(xlCanon(antes[k]) !== xlCanon(depois[k])) campos.push(k);
+    });
+    return campos.slice(0, 12).join(', ') + (campos.length > 12 ? '…' : '');
+  }catch(e){ return ''; }       /* sem leitura anterior (linha nova ou marcada para regravar) */
+}
+function lgGravou(t, row, novo, sigAntes, sigDepois){
+  var cells = XLT[t].unshape(row), det = lgDescreve(t, cells);
+  if(!novo){
+    if(sigAntes === sigDepois) return;       /* gravação repetida do mesmo conteúdo (várias telas salvando em sequência): nada mudou */
+    var campos = lgCamposAlterados(t, row, sigAntes);
+    if(campos === 'ultimoAcesso') return;    /* o último acesso já aparece como ENTROU */
+    if(campos) det += ' — campos: ' + campos;
+  }
+  lgRegistrar(novo ? 'CRIOU' : 'ALTEROU', det);
+}
+
+/* ---------- gravação no SharePoint ---------- */
+async function lgGraph(token, metodo, caminho, opc){
+  var o = opc || {};
+  var url = caminho.indexOf('https://') === 0 ? caminho : 'https://graph.microsoft.com/v1.0' + caminho;
+  var res = await fetch(url, {method: metodo, headers: Object.assign({'Authorization': 'Bearer ' + token}, o.headers || {}), cache: 'no-store', body: o.body});
+  if(res.status === 401 && !o.jaRenovou && _msToken){      /* token venceu: renova uma vez e repete */
+    try{ await msSilencioso(); return lgGraph(_msToken, metodo, caminho, Object.assign({}, o, {jaRenovou: true})); }catch(e){ /* cai no erro abaixo */ }
+  }
+  if(res.status === 404 && o.aceita404) return null;
+  if(!res.ok){ var e2 = new Error('Log ' + metodo + ' -> ' + res.status); e2.status = res.status; throw e2; }
+  return res.status === 204 ? null : res.json();
+}
+async function lgLerTexto(item, token, nome){
+  var url = item && item['@microsoft.graph.downloadUrl'], texto = null;
+  if(url){
+    try{ var r = await fetch(url, {cache: 'no-store'}); if(r.ok) texto = await r.text(); }     /* link temporário já autorizado: não leva o token */
+    catch(e){ console.warn('Log: link direto bloqueado, lendo pelo Graph:', e.message); }
+  }
+  if(texto === null){
+    var r2 = await fetch('https://graph.microsoft.com/v1.0' + lgCaminho(nome) + ':/content', {headers: {'Authorization': 'Bearer ' + token}, cache: 'no-store'});
+    if(!r2.ok) throw new Error('Log: leitura do arquivo -> ' + r2.status);
+    texto = await r2.text();
+  }
+  return texto.replace(/^﻿/, '');
+}
+async function lgAcrescenta(token, mes, linhas){
+  var nome = lgNomeArquivo(mes), novo = linhas.join('\r\n') + '\r\n', tipo = {'Content-Type': 'text/plain; charset=utf-8'};
+  for(var i = 0; i < LG_TENTATIVAS; i++){
+    var item = await lgGraph(token, 'GET', lgCaminho(nome), {aceita404: true});
+    try{
+      if(!item){
+        await lgGraph(token, 'PUT', lgCaminho(nome) + ':/content?@microsoft.graph.conflictBehavior=fail', {headers: tipo, body: novo});     /* a pasta "logs" nasce junto */
+      } else {
+        var atual = await lgLerTexto(item, token, nome);
+        var sep = atual && !/\n$/.test(atual) ? '\r\n' : '';
+        await lgGraph(token, 'PUT', lgCaminho(nome) + ':/content', {headers: Object.assign({'If-Match': item.eTag}, tipo), body: atual + sep + novo});
+      }
+      return;
+    }catch(e){
+      if((e.status === 412 || e.status === 409 || e.status === 423) && i < LG_TENTATIVAS - 1){ await msEspera(300 + Math.random() * 900); continue; }     /* alguém gravou ao mesmo tempo: lê de novo e repete */
+      throw e;
+    }
+  }
+}
+async function lgFlush(){
+  clearTimeout(_lgTimer); _lgTimer = null;
+  var token = _msToken || _lgTokenSaida;       /* ao sair, o token da pessoa que saiu termina a gravação */
+  if(_lgOcupado || !_lgFila.length || !token) return;
+  _lgOcupado = true;
+  var lote = _lgFila.splice(0), falhou = false;
+  try{
+    var porMes = {};
+    lote.forEach(function(l){ (porMes[l.slice(0, 7)] = porMes[l.slice(0, 7)] || []).push(l); });
+    var meses = Object.keys(porMes).sort();
+    for(var i = 0; i < meses.length; i++){
+      try{ await lgAcrescenta(token, meses[i], porMes[meses[i]]); }
+      catch(e){ _lgFila.unshift.apply(_lgFila, porMes[meses[i]]); throw e; }       /* não gravou: volta para a fila */
+    }
+  }catch(e){
+    falhou = true;
+    if(!_lgAvisou) console.warn('Log não gravado (será tentado de novo):', e.message);
+    _lgAvisou = true;
+  }finally{
+    _lgOcupado = false;
+    _lgFila = _lgFila.slice(-LG_FILA_MAX);
+    lgSalvaFila();
+    if(!_lgFila.length) _lgTokenSaida = null;
+    else if(!_lgTimer) _lgTimer = setTimeout(lgFlush, falhou ? LG_ESPERA_MS * 4 : LG_ESPERA_MS);
+  }
+}
+
+/* ---------- tela "Logs" (só leitura) ---------- */
+async function lgOpen(){
+  if(!lgEhAdmin()) return;
+  lgVista.carregando = true; lgVista.erro = ''; if(state.view.name === 'admin-logs') render();
+  try{
+    await lgFlush();       /* grava antes o que ainda está na fila */
+    var token = _msToken;
+    var pasta = await lgGraph(token, 'GET', lgCaminho('') + '?$select=webUrl', {aceita404: true});
+    lgVista.pastaUrl = (pasta && pasta.webUrl) || '';
+    var arquivos = [], prox = pasta ? lgCaminho('') + ':/children?$select=name&$top=200' : null;
+    while(prox){ var r = await lgGraph(token, 'GET', prox); arquivos = arquivos.concat(r.value || []); prox = r['@odata.nextLink'] || null; }
+    var meses = arquivos.map(function(f){ return (String(f.name).match(/^log-(\d{4}-\d{2})\.txt$/) || [])[1]; }).filter(Boolean).sort().reverse();
+    var atual = lgAgora().slice(0, 7);
+    if(meses.indexOf(atual) === -1) meses.unshift(atual);
+    lgVista.meses = meses;
+    if(meses.indexOf(lgFiltro.mes) === -1) lgFiltro.mes = atual;
+    await lgCarregaMes();
+  }catch(e){
+    console.error(e);
+    lgVista.erro = 'Não foi possível ler os logs: ' + (e.status === 403 ? 'sem permissão na pasta de logs.' : e.message);
+    lgVista.carregando = false;
+    if(state.view.name === 'admin-logs') render();
+  }
+}
+async function lgCarregaMes(){
+  if(!lgEhAdmin()) return;
+  var mes = lgFiltro.mes;
+  if(!/^\d{4}-\d{2}$/.test(mes)) return;
+  lgVista.carregando = true; lgVista.erro = '';
+  try{
+    var item = await lgGraph(_msToken, 'GET', lgCaminho(lgNomeArquivo(mes)), {aceita404: true});
+    var texto = item ? await lgLerTexto(item, _msToken, lgNomeArquivo(mes)) : '';
+    lgVista.linhas = texto.split(/\r?\n/)
+      .concat(_lgFila.filter(function(l){ return l.indexOf(mes) === 0; }))       /* linhas ainda não gravadas */
+      .filter(function(l){ return l.trim(); })
+      .map(function(l){
+        var p = l.split(' | ');
+        return {quando: p[0] || '', nome: p[1] || '', email: p[2] || '', acao: p[3] || '', tela: p[4] || '', detalhe: p.slice(5).join(' | ')};
+      })
+      .reverse();       /* mais recente primeiro */
+    if(!lgVista.linhas.some(function(l){ return l.email === lgFiltro.usuario; })) lgFiltro.usuario = '';
+    _lgLimite = LG_POR_PAGINA;
+  }catch(e){
+    console.error(e);
+    lgVista.erro = 'Não foi possível ler este mês: ' + e.message;
+  }
+  lgVista.carregando = false;
+  if(state.view.name === 'admin-logs') render();
+}
+function lgMudarMes(){
+  if(!lgEhAdmin()) return;
+  lgFiltro.mes = (document.getElementById('lg-mes') || {}).value || lgFiltro.mes;
+  lgCarregaMes();
+}
+function lgFiltrar(){
+  if(!lgEhAdmin()) return;
+  ['de', 'ate', 'usuario', 'acao', 'busca'].forEach(function(k){ lgFiltro[k] = (document.getElementById('lg-' + k) || {}).value || ''; });
+  _lgLimite = LG_POR_PAGINA;
+  lgPintar();
+}
+function lgLimparFiltros(){
+  lgFiltro = {mes: lgFiltro.mes, de: '', ate: '', usuario: '', acao: '', busca: ''};
+  _lgLimite = LG_POR_PAGINA;
+  render();
+}
+function lgMaisLinhas(){ if(!lgEhAdmin()) return; _lgLimite += LG_POR_PAGINA; lgPintar(); }
+function lgFiltrado(){
+  var f = lgFiltro, q = f.busca.trim().toLowerCase();
+  return lgVista.linhas.filter(function(l){
+    var dia = l.quando.slice(0, 10);
+    return (!f.usuario || l.email === f.usuario) && (!f.acao || l.acao === f.acao) && (!f.de || dia >= f.de) && (!f.ate || dia <= f.ate) &&
+      (!q || [l.nome, l.email, l.acao, l.tela, l.detalhe].join(' ').toLowerCase().indexOf(q) !== -1);
+  });
+}
+function lgLinhasHtml(lista){
+  if(!lista.length) return '<tr><td colspan="5" style="text-align:center; color:var(--ink-faint); padding:1.6rem 0;">'+(lgVista.carregando ? 'Carregando…' : 'Nenhum registro encontrado.')+'</td></tr>';
+  return lista.slice(0, _lgLimite).map(function(l){
+    var cls = LG_ACOES.indexOf(l.acao) !== -1 ? ' lg-' + l.acao : '';
+    return '<tr><td class="mono" style="white-space:nowrap;">'+esc(l.quando.slice(0, 10).split('-').reverse().join('/'))+' '+esc(l.quando.slice(11))+'</td>'+
+      '<td><strong style="font-size:.85rem;">'+esc(l.nome)+'</strong><div style="font-size:.74rem; color:var(--ink-faint);">'+esc(l.email)+'</div></td>'+
+      '<td><span class="pill'+cls+'">'+esc(l.acao)+'</span></td>'+
+      '<td>'+esc(l.tela)+'</td>'+
+      '<td style="word-break:break-word;">'+esc(l.detalhe)+'</td></tr>';
+  }).join('');
+}
+/* atualiza só a tabela, sem refazer a tela (quem digita no filtro não perde o cursor) */
+function lgPintar(){
+  var lista = lgFiltrado(), corpo = document.getElementById('lg-body'), cont = document.getElementById('lg-count'), mais = document.getElementById('lg-mais');
+  if(corpo) corpo.innerHTML = lgLinhasHtml(lista);
+  if(cont) cont.textContent = lista.length ? 'Mostrando ' + Math.min(_lgLimite, lista.length) + ' de ' + lista.length + ' registro(s)' : '';
+  if(mais) mais.style.display = lista.length > _lgLimite ? '' : 'none';
+}
+function renderAdminLogs(){
+  if(!lgEhAdmin()) return '<div class="empty-state">Tela não encontrada.</div>';
+  var f = lgFiltro, v = lgVista, lista = lgFiltrado();
+  var meses = v.meses.length ? v.meses : [f.mes || lgAgora().slice(0, 7)];
+  var mesesOpt = meses.map(function(m){ return '<option value="'+esc(m)+'"'+(f.mes === m ? ' selected' : '')+'>'+esc(m.split('-').reverse().join('/'))+'</option>'; }).join('');
+  var emails = []; v.linhas.forEach(function(l){ if(l.email && emails.indexOf(l.email) === -1) emails.push(l.email); }); emails.sort();
+  var usuariosOpt = emails.map(function(e){ return '<option value="'+esc(e)+'"'+(f.usuario === e ? ' selected' : '')+'>'+esc(e)+'</option>'; }).join('');
+  var acoesOpt = LG_ACOES.map(function(a){ return '<option value="'+a+'"'+(f.acao === a ? ' selected' : '')+'>'+a+'</option>'; }).join('');
+  var temFiltro = f.de || f.ate || f.usuario || f.acao || f.busca;
+  return ''+
+  '<div class="section-title"><h3>Logs de usuários</h3><div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">'+
+    (temFiltro ? '<button class="btn btn-ghost btn-sm" onclick="PS.lgLimparFiltros()">Limpar filtros</button>' : '')+
+    '<button class="btn btn-ghost btn-sm" onclick="PS.lgOpen()">Atualizar</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="PS.lgBaixar()">Baixar .txt</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="PS.lgAbrirPasta()">Abrir pasta</button>'+
+  '</div></div>'+
+  '<div class="banner-proto">'+seal(16)+' Cada mês fica num arquivo de texto (log-AAAA-MM.txt) na pasta "logs", ao lado da planilha do portal. Esta tela é só para consulta: não altera nem apaga nada. Horário de Brasília. Quem tem acesso à pasta no SharePoint também consegue abrir o arquivo por lá.</div>'+
+  '<div class="lg-bar">'+
+    '<select id="lg-mes" title="Mês" onchange="PS.lgMudarMes()">'+mesesOpt+'</select>'+
+    '<input type="date" id="lg-de" title="De" value="'+esc(f.de)+'" onchange="PS.lgFiltrar()">'+
+    '<input type="date" id="lg-ate" title="Até" value="'+esc(f.ate)+'" onchange="PS.lgFiltrar()">'+
+    '<select id="lg-usuario" onchange="PS.lgFiltrar()"><option value="">Todos os usuários</option>'+usuariosOpt+'</select>'+
+    '<select id="lg-acao" onchange="PS.lgFiltrar()"><option value="">Todas as ações</option>'+acoesOpt+'</select>'+
+    '<input type="text" id="lg-busca" placeholder="Buscar no texto…" value="'+esc(f.busca)+'" oninput="PS.lgFiltrar()">'+
+  '</div>'+
+  (v.erro ? '<div class="home-msg" style="margin-bottom:.8rem;">'+esc(v.erro)+'</div>' : '')+
+  '<div id="lg-count" style="font-size:.78rem; color:var(--ink-faint); margin-bottom:.4rem;">'+(lista.length ? 'Mostrando '+Math.min(_lgLimite, lista.length)+' de '+lista.length+' registro(s)' : '')+'</div>'+
+  '<div class="card u-scroll-x"><table><thead><tr><th>Data / hora</th><th>Usuário</th><th>Ação</th><th>Tela</th><th>Detalhe</th></tr></thead><tbody id="lg-body">'+lgLinhasHtml(lista)+'</tbody></table></div>'+
+  '<div style="text-align:center; margin-top:.8rem;"><button class="btn btn-ghost btn-sm" id="lg-mais" style="'+(lista.length > _lgLimite ? '' : 'display:none;')+'" onclick="PS.lgMaisLinhas()">Mostrar mais</button></div>';
+}
+/* baixa uma cópia do que está na tela (com os filtros); o arquivo no SharePoint não é tocado */
+function lgBaixar(){
+  if(!lgEhAdmin()) return;
+  var texto = lgFiltrado().slice().reverse().map(function(l){ return [l.quando, l.nome, l.email, l.acao, l.tela, l.detalhe].join(' | '); }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([texto + '\r\n'], {type: 'text/plain;charset=utf-8'}));
+  a.download = lgNomeArquivo(lgFiltro.mes);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+function lgAbrirPasta(){
+  if(lgEhAdmin() && /^https:\/\//.test(lgVista.pastaUrl)) window.open(lgVista.pastaUrl, '_blank', 'noopener');
+  else toast('A pasta de logs ainda não foi criada.');
+}
+
+/* =========================================================
    FUNÇÕES CHAMADAS PELOS BOTÕES (window.PS)
    Os botões da tela chamam PS.nomeDaFunção(...). Toda função usada num onclick precisa estar nesta lista.
    ========================================================= */
@@ -6280,12 +6613,15 @@ window.PS = {
   reenviarAnexo: reenviarAnexo,
   aprovarSolicitacao: aprovarSolicitacao, abrirModalRecusar: abrirModalRecusar, confirmarRecusa: confirmarRecusa, reabrirSolicitacao: reabrirSolicitacao,
   copiarCodigo: copiarCodigo,
+  lgOpen: lgOpen, lgMudarMes: lgMudarMes, lgFiltrar: lgFiltrar, lgLimparFiltros: lgLimparFiltros, lgMaisLinhas: lgMaisLinhas, lgBaixar: lgBaixar, lgAbrirPasta: lgAbrirPasta,
   clienteIr: clienteIr, clienteVoltar: clienteVoltar, clienteNovaConsulta: clienteNovaConsulta, clienteMascara: clienteMascara, clienteConsultar: clienteConsultar
 };
 
 /* =========================================================
    INICIALIZAÇÃO
    ========================================================= */
+/* grava o que estiver na fila quando a aba é escondida ou fechada */
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') lgFlush(); });
 render();
 boot();
 })();
