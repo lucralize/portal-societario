@@ -300,6 +300,7 @@
   .pill.status-em_andamento, .pill.lg-ENTROU, .pill.lg-BAIXOU, .pill.lg-ENVIOU_EMAIL{background:var(--lz-info-bg); color:var(--lz-info-ink);}
   .pill.status-concluido, .pill.tag-confirmado, .pill.lg-CRIOU{background:var(--lz-success-bg); color:var(--lz-success-ink);}
   .pill.status-cancelado, .pill.status-recusado, .pill.lg-EXCLUIU, .pill.lg-ACESSO_NEGADO{background:var(--lz-danger-bg); color:var(--lz-danger-ink);}
+  .pill.status-desistencia{background:var(--lz-surface-3); color:var(--lz-text-muted);}
   .pill.lg-SAIU, .pill.lg-ABRIU{background:var(--lz-surface-2); color:var(--lz-text-muted);}
 
   .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.6rem;}
@@ -957,7 +958,7 @@ function estadoInicial(){
    "Existe uma versão mais nova" (ver verificarNovaVersaoDisponivel); sem trocar, a aba continua com o código antigo. */
 var LOGO_URL = 'https://raw.githubusercontent.com/lucralize/pagina-principal/main/lucralize-logo-horizontal.png';
 var LOGO_URL_FALLBACK = 'https://raw.githubusercontent.com/infralucralize/pagina-principal/main/lucralize-logo-horizontal.png';
-var BUILD_ID = '20261026-visual1';
+var BUILD_ID = '20261030-desistencia1';
 /* =========================================================
    CAMADA DE DADOS — Microsoft 365 (Excel + SharePoint)
    O app chama "planilha.*", com a mesma forma de uma API de banco de dados
@@ -1823,7 +1824,7 @@ function effectiveCompanyForPricing(){
 }
 
 function statusLabel(s){
-  return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito'}[s] || 'Status desconhecido';
+  return {solicitado:'Solicitação em análise', aguardando_pagamento:'Aguardando pagamento', em_andamento:'Em andamento', concluido:'Concluído', cancelado:'Cancelado pelo cliente', recusado:'Pedido não aceito', desistencia:'Desistência'}[s] || 'Status desconhecido';
 }
 function divisaoLabel(d){
   return {tech:'Lucralize Tech', contabilidade:'Lucralize Contabilidade'}[d] || null;
@@ -1931,6 +1932,7 @@ function stepStates(process){
     if(process.status==='aguardando_pagamento'){ st = 'pendente'; }
     else if(process.status==='concluido'){ st = 'concluida'; }
     else if(i < process.etapaAtual){ st='concluida'; }
+    else if(process.status==='desistencia'){ st='pendente'; }
     else if(i === process.etapaAtual){ st='atual'; }
     else{ st='pendente'; }
     out.push({label:(process.vistoriaNaoNecessaria && steps[i]===ETAPA_VISTORIA) ? 'Vistoria/análise do órgão — não necessária' : steps[i], state:st});
@@ -4441,13 +4443,15 @@ function renderProcessoDetalhe(id){
   } else {
     var etapasP = etapasDoProcesso(p);
     var naUltimaEtapaAindaEmAndamento = p.status==='em_andamento' && p.etapaAtual===etapasP.length-1;
-    var nextLabel = p.status==='cancelado' ? null : (p.status==='aguardando_pagamento' ? 'Confirmar pagamento e iniciar processo'
+    var nextLabel = (p.status==='cancelado' || p.status==='desistencia') ? null : (p.status==='aguardando_pagamento' ? 'Confirmar pagamento e iniciar processo'
       : (naUltimaEtapaAindaEmAndamento ? 'Concluir: '+esc(etapasP[p.etapaAtual])
       : (p.etapaAtual < etapasP.length-1 ? 'Avançar para: '+esc(etapasP[p.etapaAtual+1]) : null)));
     adminActions = '<div class="card" style="padding:1.1rem 1.2rem; display:flex; flex-direction:column; gap:.7rem;">'+
       '<span class="eyebrow">Ações do administrador</span>'+
       (p.status==='cancelado' ? '<div class="pill status-cancelado" style="align-self:flex-start;">Processo cancelado pelo cliente</div>' :
-        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+jsArg(p.id)+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>'))+botaoVistoriaNaoNecessaria(p)+
+        (p.status==='desistencia' ? '<div class="pill status-desistencia" style="align-self:flex-start;">Desistência registrada</div>' :
+        (nextLabel ? '<button class="btn btn-primary btn-block" onclick="PS.avancarEtapa(\''+jsArg(p.id)+'\')">'+nextLabel+'</button>' : '<div class="pill status-concluido" style="align-self:flex-start;">Processo concluído</div>')))+botaoVistoriaNaoNecessaria(p)+
+      ((p.status==='aguardando_pagamento' || p.status==='em_andamento') ? '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalDesistencia(\''+jsArg(p.id)+'\')">Registrar desistência</button>' : '')+
       '<button class="btn btn-ghost btn-block" onclick="PS.abrirModalReiniciar(\''+jsArg(p.id)+'\')">↺ Reiniciar processo</button>'+
       '<button class="btn btn-danger btn-block" onclick="PS.abrirModalExcluirProcesso(\''+jsArg(p.id)+'\')">🗑 Excluir processo</button>'+
     '</div>';
@@ -4686,6 +4690,44 @@ function confirmarAvancoComplemento(id){
   }
   executarAvancoEtapa(id, texto);
 }
+function abrirModalDesistencia(id){
+  var p = state.processes.filter(function(x){return x.id===id;})[0];
+  if(!p || (p.status!=='aguardando_pagamento' && p.status!=='em_andamento')) return;
+  var html = ''+
+  '<div class="overlay modal-center" id="modal-root" onclick="if(event.target===this) PS.closePanel()">'+
+    '<div class="modal-box">'+
+      '<div class="panel-head"><h3 style="font-size:1.05rem;">Registrar desistência</h3><button class="close-x" onclick="PS.closePanel()">✕</button></div>'+
+      '<div class="panel-body">'+
+        '<p style="color:var(--ink-soft); font-size:.88rem; line-height:1.5;">O status do processo passa para "Desistência". O histórico, os documentos e as observações são mantidos, nenhum e-mail é enviado ao cliente e o processo pode ser retomado depois em "Reiniciar processo".</p>'+
+        '<div class="field"><label for="desistencia-motivo">Motivo (opcional)</label><textarea id="desistencia-motivo" rows="3" maxlength="300" placeholder="Ex.: cliente optou por outro escritório"></textarea></div>'+
+      '</div>'+
+      '<div class="panel-foot"><button class="btn btn-ghost" onclick="PS.closePanel()">Cancelar</button><button class="btn btn-danger" onclick="PS.confirmarDesistencia(\''+jsArg(p.id)+'\')">Confirmar desistência</button></div>'+
+    '</div>'+
+  '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+async function confirmarDesistencia(id){
+  var p = state.processes.filter(function(x){return x.id===id;})[0];
+  if(!p || (p.status!=='aguardando_pagamento' && p.status!=='em_andamento')){ closePanel(); return; }
+  var campo = document.getElementById('desistencia-motivo');
+  var motivo = campo ? String(campo.value || '').replace(/\s+/g,' ').trim().slice(0,300) : '';
+  var snapshot = JSON.parse(JSON.stringify(p));
+  var statusAnterior = p.status;
+  p.status = 'desistencia';
+  p.historico.push({data:todayISO(), hora:nowHM(), texto:'Desistência registrada pela equipe Lucralize (status anterior: '+statusLabel(statusAnterior)+').'+(motivo ? ' Motivo: '+motivo : ''), autor:nomeAutorAtual()});
+  saveState();
+  closePanel();
+  render();
+  var ok = await salvarProcessoNoServidor(p);
+  if(ok){
+    toast('Desistência registrada. O cliente vê o status atualizado no portal dele; nenhum e-mail foi enviado.');
+  } else {
+    Object.assign(p, snapshot);
+    saveState();
+    render();
+    toast('Não foi possível registrar a desistência. Verifique sua internet e tente novamente.');
+  }
+}
 function reiniciarProcessoOpcoesHtml(p){
   var opcoes = (servicoSemPagamento(p.servicoId) ? [] : [{idx:-1, label:'Pagamento confirmado'}]).concat(etapasDoProcesso(p).map(function(label, i){ return {idx:i, label:label}; }));
   return opcoes.map(function(o){
@@ -4785,7 +4827,7 @@ function renderAdminOverview(){
   var mesAtual = todayISO().slice(0,7);
   var podeAvancarMes = adminMesConcluidos < mesAtual;
   var abertosNoMes = procs.filter(function(p){ return (p.criadoEm||'').slice(0,7)===adminMesConcluidos; });
-  var ativos = abertosNoMes.filter(function(p){return p.status!=='concluido';}).length;
+  var ativos = abertosNoMes.filter(function(p){return p.status!=='concluido' && p.status!=='desistencia';}).length;
   var aguardando = abertosNoMes.filter(function(p){return p.status==='aguardando_pagamento';}).length;
   var concluidosMes = procs.filter(function(p){return p.status==='concluido' && (dataConclusao(p)||'').slice(0,7)===adminMesConcluidos;}).length;
   var faturamento = procs.reduce(function(sum,p){
@@ -4913,7 +4955,7 @@ function limparFiltrosProcessos(){
 function renderAdminProcessos(){
   var f = adminProcessosFiltro;
   var servicoOptions = SERVICES.map(function(s){return '<option value="'+s.id+'"'+(f.servico===s.id?' selected':'')+'>'+esc(s.nome)+'</option>';}).join('');
-  var statusOptions = ['aguardando_pagamento','em_andamento','concluido'].map(function(st){
+  var statusOptions = ['aguardando_pagamento','em_andamento','concluido','desistencia'].map(function(st){
     return '<option value="'+st+'"'+(f.status===st?' selected':'')+'>'+statusLabel(st)+'</option>';
   }).join('');
   var divisaoOptions = ['tech','contabilidade'].map(function(d){
@@ -5428,7 +5470,7 @@ function passosParaCliente(p){
     return ini.concat(s ? etapasDoProcesso(p).map(function(e){ return {label:e, state:'pendente'}; }) : []);
   }
   var steps = s ? stepStates(p) : [];
-  return (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : 'concluida'}]).concat(steps);
+  return (servicoSemPagamento(p.servicoId) ? [] : [{label:'Pagamento confirmado', state: p.status==='aguardando_pagamento' ? 'atual' : (p.status==='desistencia' && p.etapaAtual<0 ? 'pendente' : 'concluida')}]).concat(steps);
 }
 function publicoDoProcesso(p){
   var s = SERVICE_MAP[p.servicoId], emp = getCompany(p.empresaId);
@@ -5480,7 +5522,18 @@ function renderConsultaResultado(){
       '<div class="step-body"><div class="title">'+esc(st.t)+'</div>'+(estado === 'atual' ? '<div class="when">Em andamento agora</div>' : '')+'</div>'+
     '</div>';
   }).join('');
-  var statusOk = ['solicitado','aguardando_pagamento','em_andamento','concluido','cancelado','recusado'].indexOf(r.status) !== -1;
+  var statusOk = ['solicitado','aguardando_pagamento','em_andamento','concluido','cancelado','recusado','desistencia'].indexOf(r.status) !== -1;
+  if(r.status === 'desistencia'){
+    return '<div class="cli-card" data-theme="light">'+
+      '<div><span class="cli-eyebrow">Seu processo</span><h2 style="margin-top:.2rem;">'+esc(r.servico || 'Serviço')+'</h2>'+
+        (r.empresa ? '<div class="cli-sub">'+esc(r.empresa)+'</div>' : '')+'</div>'+
+      '<div class="cli-meta"><span class="pill status-desistencia"><span class="pill-dot"></span>'+esc(statusLabel('desistencia'))+'</span>'+
+        (r.criadoEm ? '<span class="cli-sub">Solicitado em '+esc(fmtDate(r.criadoEm))+'</span>' : '')+'</div>'+
+      '<div class="cli-aviso">Este processo foi encerrado por desistência. Se quiser retomá-lo, entre em contato com a Lucralize.</div>'+
+      '<button class="btn btn-primary btn-block" onclick="PS.clienteNovaConsulta()">Consultar outro código</button>'+
+      '<button class="btn btn-ghost btn-sm" style="align-self:flex-start;" onclick="PS.clienteVoltar()">← Voltar</button>'+
+    '</div>';
+  }
   if(r.status === 'recusado'){
     return '<div class="cli-card" data-theme="light">'+
       '<div><span class="cli-eyebrow">Seu pedido</span><h2 style="margin-top:.2rem;">'+esc(r.servico || 'Serviço')+'</h2>'+
@@ -6646,6 +6699,7 @@ reabrirSolicitacao = comOpLocal(reabrirSolicitacao);
 confirmarExcluirArquivo = comOpLocal(confirmarExcluirArquivo);
 executarAvancoEtapa = comOpLocal(executarAvancoEtapa);
 window.PS = {
+  abrirModalDesistencia: abrirModalDesistencia, confirmarDesistencia: confirmarDesistencia,
   navToggle: navToggle,
   abrirModalEmailCliente: abrirModalEmailCliente, salvarEmailCliente: salvarEmailCliente,
   entrarFuncionario: entrarFuncionario, homeAbrirCliente: homeAbrirCliente, homeVoltar: homeVoltar,
